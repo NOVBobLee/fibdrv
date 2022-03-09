@@ -39,3 +39,12 @@ check: all
 	$(MAKE) unload
 	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
+
+cscope_tags:
+	@rm -f cscope.* tags
+	@echo -n "Old cscope files, tags removed..\nNew cscope.. "
+	@find . -name "*.[ch]" > cscope.files
+	@cscope -Rbq
+	@echo "done\nNew tags.. \c" -e
+	@ctags -R -h=".c.h"
+	@echo "done"
