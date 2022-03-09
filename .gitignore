@@ -29,3 +29,10 @@ dkms.conf
 # test-oriented
 client
 out
+
+# editor config
+.vimrc
+
+# cscope and tags
+cscope.*
+tags
