@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
@@ -39,6 +40,57 @@ static long long fib_sequence(long long k)
     return f[k];
 }
 
+static inline ssize_t fibseq_vla_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fib_sequence(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fib_seq_kmalloc(long long k)
+{
+    long long result, *f = kmalloc_array(k + 2, sizeof(long long), GFP_KERNEL);
+
+    f[0] = 0;
+    f[1] = 1;
+    for (int i = 2; i <= k; ++i)
+        f[i] = f[i - 1] + f[i - 2];
+
+    result = f[k];
+    kfree(f);
+    return result;
+}
+
+static inline ssize_t fibseq_kmalloc_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fib_seq_kmalloc(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fib_seq_fixedla(long long k)
+{
+    long long f[2] = {0, 1};
+
+    for (int i = 2; i <= k; ++i)
+        f[i & 0x1] += f[(i - 1) & 0x1];
+
+    return f[k & 0x1];
+}
+
+static inline ssize_t fibseq_fixedla_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fib_seq_fixedla(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -66,14 +118,18 @@ static ssize_t fib_read(struct file *file,
 /* write operation is skipped */
 static ssize_t fib_write(struct file *file,
                          const char *buf,
-                         size_t size,
+                         size_t method,
                          loff_t *offset)
 {
-    ktime_t kt;
-    kt = ktime_get();
-    fib_sequence(*offset);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
+    switch (method) {
+    case 0:
+        return fibseq_vla_timer(*offset);
+    case 1:
+        return fibseq_kmalloc_timer(*offset);
+    case 2:
+        return fibseq_fixedla_timer(*offset);
+    }
+    return 1;
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
