@@ -1,0 +1,5 @@
+# ignore the experiment's data in this directory
+*
+
+# keep this directory
+!.gitignore

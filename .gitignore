@@ -37,8 +37,5 @@ out
 cscope.*
 tags
 
-# experiment's data
-data/*
-
 # experiment's programs
 expt_userkernel01
