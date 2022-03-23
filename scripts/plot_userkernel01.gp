@@ -10,6 +10,6 @@ set ylabel 'time (ns)'
 set grid
 
 plot [0:100][0:800] \
-'data/userkernel01-data.out' using 1:2 with linespoints pt 7 ps .5 title "user", \
-'' using 1:3 with linespoints pt 7 ps .5 title "kernel", \
+'data/userkernel01-data.out' using 1:2 with linespoints pt 7 ps .5 title "kernel", \
+'' using 1:3 with linespoints pt 7 ps .5 title "user", \
 '' using 1:4 with linespoints pt 7 ps .5 title "syscall"
