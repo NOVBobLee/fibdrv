@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define OUT_FILE "data/vlafree02-data.out"
+#define OUT_FILE "data/02_vlafree_data.out"
 
 #define NFIB 92
 #define NSAMPLE 1000

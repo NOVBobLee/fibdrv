@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define OUT_FILE "data/userkernel01-data.out"
+#define OUT_FILE "data/01_userkernel_data.out"
 
 #define NFIB 92
 #define NSAMPLE 1000

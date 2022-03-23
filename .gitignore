@@ -38,4 +38,5 @@ cscope.*
 tags
 
 # experiment's programs
-expt_userkernel01
+expt01_userkernel
+expt02_vlafree

@@ -9,8 +9,8 @@ PWD := $(shell pwd)
 
 GIT_HOOKS := .git/hooks/applied
 
-EXPT=expt_userkernel01\
-	 expt_vlafree02
+EXPT=expt01_userkernel\
+	 expt02_vlafree
 
 all: $(GIT_HOOKS) client $(EXPT)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
@@ -49,13 +49,13 @@ check: all
 expt01: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./scripts/expt_userkernel01.sh
+	sudo ./scripts/expt.sh 0
 	$(MAKE) unload
 
 expt02: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./scripts/expt_vlafree02.sh
+	sudo ./scripts/expt.sh 1
 	$(MAKE) unload
 
 cscope_tags:

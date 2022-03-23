@@ -11,6 +11,11 @@ F_DSMPAFF=/proc/irq/default_smp_affinity
 declare -a files
 declare -a origs
 
+declare -a expts
+expts+=(01_userkernel)
+expts+=(02_vlafree)
+which_expt=$1
+
 cnt_f=-1
 
 expt_start() {
@@ -80,11 +85,12 @@ expt_end() {
 
 expt() {
 	expt_start
-	taskset -c 7 ./expt_userkernel01
+	taskset -c 7 ./expt${expts[$which_expt]}
 	expt_end
 }
 
 expt
 #check_state
-gnuplot ./scripts/plot_userkernel01.gp
-chown zz4t:zz4t data/userkernel01-data.out data/userkernel01-pic.png
+gnuplot ./scripts/plot${expts[$which_expt]}.gp
+chown zz4t:zz4t ./data/${expts[$which_expt]}_data.out \
+				./data/${expts[$which_expt]}_pic.png
