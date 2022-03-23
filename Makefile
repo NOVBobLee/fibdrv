@@ -9,7 +9,9 @@ PWD := $(shell pwd)
 
 GIT_HOOKS := .git/hooks/applied
 
-all: $(GIT_HOOKS) client
+EXPT=expt_userkernel01
+
+all: $(GIT_HOOKS) client $(EXPT)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 $(GIT_HOOKS):
@@ -18,7 +20,7 @@ $(GIT_HOOKS):
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	$(RM) client out
+	$(RM) client out $(EXPT)
 load:
 	sudo insmod $(TARGET_MODULE).ko
 unload:
@@ -26,6 +28,9 @@ unload:
 
 client: client.c
 	$(CC) -o $@ $^
+
+$(EXPT): %: %.c
+	$(CC) -o $@ $< -lm
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
@@ -39,6 +44,12 @@ check: all
 	$(MAKE) unload
 	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
+
+expt01: all
+	$(MAKE) unload
+	$(MAKE) load
+	sudo ./scripts/expt_userkernel01.sh
+	$(MAKE) unload
 
 cscope_tags:
 	@rm -f cscope.* tags

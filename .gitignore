@@ -36,3 +36,9 @@ out
 # cscope and tags
 cscope.*
 tags
+
+# experiment's data
+data/*
+
+# experiment's programs
+expt_userkernel01
