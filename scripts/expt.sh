@@ -1,12 +1,16 @@
 #!/bin/bash
 #
 # NEED root privilege
+# @(1st arg): a number, which specifies executing which experiment
 #
 
 F_ASLR=/proc/sys/kernel/randomize_va_space
 F_CPUFREQ=/sys/devices/system/cpu/cpu7/cpufreq/scaling_governor
 F_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo
 F_DSMPAFF=/proc/irq/default_smp_affinity
+
+user=`ls -l fibdrv.c | cut -d' ' -f3`
+group=`ls -l fibdrv.c | cut -d' ' -f4`
 
 declare -a files
 declare -a origs
@@ -92,5 +96,5 @@ expt() {
 expt
 #check_state
 gnuplot ./scripts/plot${expts[$which_expt]}.gp
-chown zz4t:zz4t ./data/${expts[$which_expt]}_data.out \
-				./data/${expts[$which_expt]}_pic.png
+chown ${user}:${group} ./data/${expts[$which_expt]}_data.out \
+					   ./data/${expts[$which_expt]}_pic.png
