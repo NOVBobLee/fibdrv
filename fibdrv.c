@@ -53,6 +53,9 @@ static long long fib_seq_kmalloc(long long k)
 {
     long long result, *f = kmalloc_array(k + 2, sizeof(long long), GFP_KERNEL);
 
+    if (unlikely(!f))
+        return -1;
+
     f[0] = 0;
     f[1] = 1;
     for (int i = 2; i <= k; ++i)
