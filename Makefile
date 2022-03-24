@@ -12,7 +12,9 @@ GIT_HOOKS := .git/hooks/applied
 EXPT=expt01_userkernel\
 	 expt02_vlafree
 
-all: $(GIT_HOOKS) client $(EXPT)
+EXPT_PERF=expt03_vlafree_perf
+
+all: $(GIT_HOOKS) client $(EXPT) $(EXPT_PERF)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 $(GIT_HOOKS):
@@ -33,6 +35,9 @@ client: client.c
 $(EXPT): %: %.c
 	$(CC) -o $@ $< -lm
 
+$(EXPT_PERF): %: %.c
+	$(CC) -o $@ $< -Dperf_test
+
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
 NO_COLOR = \e[0m
@@ -46,16 +51,29 @@ check: all
 	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
 
+# expt.sh arg1 arg2 arg3
+# arg1: which experiment (0-based)
+# arg2: is perf ?
+# arg3: experiment arg
+
 expt01: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./scripts/expt.sh 0
+	sudo ./scripts/expt.sh 0 0
 	$(MAKE) unload
 
 expt02: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./scripts/expt.sh 1
+	sudo ./scripts/expt.sh 1 0
+	$(MAKE) unload
+
+expt03: all
+	$(MAKE) unload
+	$(MAKE) load
+	sudo ./scripts/expt.sh 2 1 0
+	sudo ./scripts/expt.sh 2 1 1
+	sudo ./scripts/expt.sh 2 1 2
 	$(MAKE) unload
 
 cscope_tags:

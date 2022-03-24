@@ -125,12 +125,21 @@ static ssize_t fib_write(struct file *file,
                          loff_t *offset)
 {
     switch (method) {
+#ifdef perf_test
+    case 0:
+        return fib_sequence(*offset);
+    case 1:
+        return fib_seq_kmalloc(*offset);
+    case 2:
+        return fib_seq_fixedla(*offset);
+#else
     case 0:
         return fibseq_vla_timer(*offset);
     case 1:
         return fibseq_kmalloc_timer(*offset);
     case 2:
         return fibseq_fixedla_timer(*offset);
+#endif
     }
     return 1;
 }

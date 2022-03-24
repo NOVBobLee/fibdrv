@@ -18,7 +18,11 @@ declare -a origs
 declare -a expts
 expts+=(01_userkernel)
 expts+=(02_vlafree)
+expts+=(03_vlafree_perf)
+
 which_expt=$1
+is_perf=$2 # 1 or 0 (true or false)
+arg_for_expt=$3
 
 cnt_f=-1
 
@@ -89,12 +93,22 @@ expt_end() {
 
 expt() {
 	expt_start
-	taskset -c 7 ./expt${expts[$which_expt]}
+	echo "Experiment start.."
+	if [ ${is_perf} = "1" ]; then
+		perf stat -r 10 -d -C 7 -e \
+			cycles,instructions,cache-references,cache-misses \
+			taskset -c 7 ./expt${expts[$which_expt]} ${arg_for_expt}
+	else
+		taskset -c 7 ./expt${expts[$which_expt]} ${arg_for_expt}
+	fi
+	echo "Experiment end.."
 	expt_end
 }
 
 expt
 #check_state
-gnuplot ./scripts/plot${expts[$which_expt]}.gp
-chown ${user}:${group} ./data/${expts[$which_expt]}_data.out \
-					   ./data/${expts[$which_expt]}_pic.png
+if [ ${is_perf} = "0" ]; then
+	gnuplot ./scripts/plot${expts[$which_expt]}.gp
+	chown ${user}:${group} ./data/${expts[$which_expt]}_data.out \
+						   ./data/${expts[$which_expt]}_pic.png
+fi
