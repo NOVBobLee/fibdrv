@@ -43,7 +43,9 @@ expt_start() {
 		new=$((${orig} & ~0x80))
 		new=`printf '%02x' ${new}`
 		cnt_f=$((${cnt_f} + 1))
-		echo ${new} > ${files[${cnt_f}]}
+		if [ ${cnt_f} != "0" ] && [ ${cnt_f} != "2" ]; then
+			echo ${new} > ${files[${cnt_f}]}
+		fi
 	done
 	echo 7f > ${F_DSMPAFF}
 }
@@ -69,11 +71,13 @@ check_state() {
 		cnt_check=$((${cnt_check} + 1))
 	fi
 	for i in `seq 0 ${cnt_f}`; do
-		if [ `cat ${files[${i}]}` = ${origs[$i]} ]; then
-			echo "${files[${i}]} recovered"
-			cnt_check=$((${cnt_check} + 1))
-		else
-			echo "${files[${i}]} recover failed"
+		if [ ${i} != "0" ] && [ ${i} != "2" ]; then
+			if [ `cat ${files[${i}]}` = ${origs[$i]} ]; then
+				echo "${files[${i}]} recovered"
+				cnt_check=$((${cnt_check} + 1))
+			else
+				echo "${files[${i}]} recover failed"
+			fi
 		fi
 	done
 
@@ -86,7 +90,9 @@ expt_end() {
 	echo powersave > ${F_CPUFREQ}
 	echo 0 > ${F_TURBO}
 	for i in `seq 0 ${cnt_f}`; do
-		echo ${origs[${i}]} > ${files[${i}]}
+		if [ ${i} != "0" ] && [ ${i} != "2" ]; then
+			echo ${origs[${i}]} > ${files[${i}]}
+		fi
 	done
 	echo ff > ${F_DSMPAFF}
 }
