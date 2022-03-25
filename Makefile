@@ -23,7 +23,7 @@ $(GIT_HOOKS):
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	$(RM) client out $(EXPT)
+	$(RM) client out $(EXPT) $(EXPT_PERF) expt04_exactsol
 load:
 	sudo insmod $(TARGET_MODULE).ko
 unload:
@@ -76,6 +76,11 @@ expt03: $(EXPT_PERF)
 	sudo ./scripts/expt.sh 2 1 1
 	sudo ./scripts/expt.sh 2 1 2
 	$(MAKE) unload
+
+expt04: expt04_exactsol.c
+	$(CC) -o expt04_exactsol expt04_exactsol.c -lm
+	./expt04_exactsol
+	gnuplot scripts/plot04_exactsol.gp
 
 cscope_tags:
 	@rm -f cscope.* tags
