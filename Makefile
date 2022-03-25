@@ -36,7 +36,7 @@ $(EXPT): %: %.c
 	$(CC) -o $@ $< -lm
 
 $(EXPT_PERF): %: %.c
-	$(CC) -o $@ $< -Dperf_test
+	$(CC) -o $@ $<
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
@@ -68,7 +68,8 @@ expt02: all
 	sudo ./scripts/expt.sh 1 0
 	$(MAKE) unload
 
-expt03: all
+expt03: $(EXPT_PERF)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_FLAGS=-Dperf_test
 	$(MAKE) unload
 	$(MAKE) load
 	sudo ./scripts/expt.sh 2 1 0
