@@ -9,12 +9,13 @@ PWD := $(shell pwd)
 
 GIT_HOOKS := .git/hooks/applied
 
-EXPT=expt01_userkernel\
-	 expt02_vlafree
+USR := client\
+	   expt01_userkernel\
+	   expt02_vlafree\
+	   expt03_vlafree_perf\
+	   expt04_exactsol
 
-EXPT_PERF=expt03_vlafree_perf
-
-all: $(GIT_HOOKS) client $(EXPT) $(EXPT_PERF)
+all: $(GIT_HOOKS) $(USR)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 $(GIT_HOOKS):
@@ -23,20 +24,14 @@ $(GIT_HOOKS):
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	$(RM) client out $(EXPT) $(EXPT_PERF) expt04_exactsol
+	$(RM) $(USR) out
 load:
 	sudo insmod $(TARGET_MODULE).ko
 unload:
 	sudo rmmod $(TARGET_MODULE) || true >/dev/null
 
-client: client.c
-	$(CC) -o $@ $^
-
-$(EXPT): %: %.c
+$(USR): %: %.c
 	$(CC) -o $@ $< -lm
-
-$(EXPT_PERF): %: %.c
-	$(CC) -o $@ $<
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
@@ -57,19 +52,21 @@ check: all
 # arg3: experiment arg
 
 expt01: all
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
 	sudo ./scripts/expt.sh 0 0
 	$(MAKE) unload
 
 expt02: all
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
 	sudo ./scripts/expt.sh 1 0
 	$(MAKE) unload
 
-expt03: $(EXPT_PERF)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules EXTRA_FLAGS=-Dperf_test
+expt03: all
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 	$(MAKE) unload
 	$(MAKE) load
 	sudo ./scripts/expt.sh 2 1 0

@@ -49,7 +49,7 @@ static inline ssize_t fibseq_vla_timer(long long k)
     return (ssize_t) ktime_to_ns(kt);
 }
 
-static long long fib_seq_kmalloc(long long k)
+static long long fibseq_kmalloc(long long k)
 {
     long long result, *f = kmalloc_array(k + 2, sizeof(long long), GFP_KERNEL);
 
@@ -70,12 +70,12 @@ static inline ssize_t fibseq_kmalloc_timer(long long k)
 {
     ktime_t kt;
     kt = ktime_get();
-    fib_seq_kmalloc(k);
+    fibseq_kmalloc(k);
     kt = ktime_sub(ktime_get(), kt);
     return (ssize_t) ktime_to_ns(kt);
 }
 
-static long long fib_seq_fixedla(long long k)
+static long long fibseq_fixedla(long long k)
 {
     long long f[2] = {0, 1};
 
@@ -89,12 +89,12 @@ static inline ssize_t fibseq_fixedla_timer(long long k)
 {
     ktime_t kt;
     kt = ktime_get();
-    fib_seq_fixedla(k);
+    fibseq_fixedla(k);
     kt = ktime_sub(ktime_get(), kt);
     return (ssize_t) ktime_to_ns(kt);
 }
 
-static long long fib_seq_exactsol2(long long k)
+static long long fibseq_exactsolv2(long long k)
 {
     long long a = 1, b = 1;
     if (unlikely(k == 0 || k == 1))
@@ -109,16 +109,16 @@ static long long fib_seq_exactsol2(long long k)
     return b;
 }
 
-static inline ssize_t fibseq_exactsol2_timer(long long k)
+static inline ssize_t fibseq_exactsolv2_timer(long long k)
 {
     ktime_t kt;
     kt = ktime_get();
-    fib_seq_exactsol2(k);
+    fibseq_exactsolv2(k);
     kt = ktime_sub(ktime_get(), kt);
     return (ssize_t) ktime_to_ns(kt);
 }
 
-static long long fib_seq_exactsol3(long long k)
+static long long fibseq_exactsolv3(long long k)
 {
     long long a = 1, b = 1;
     if (unlikely(k == 0 || k == 1))
@@ -126,21 +126,33 @@ static long long fib_seq_exactsol3(long long k)
 
     for (int i = 2; i <= k; ++i) {
         long long old_b = b;
-        b = (a & b) + (a ^ b) >> 1;
+        b = (a & b) + ((a ^ b) >> 1);
         a = (old_b << 1) + b;
     }
 
     return b;
 }
 
-static inline ssize_t fibseq_exactsol3_timer(long long k)
+static inline ssize_t fibseq_exactsolv3_timer(long long k)
 {
     ktime_t kt;
     kt = ktime_get();
-    fib_seq_exactsol3(k);
+    fibseq_exactsolv3(k);
     kt = ktime_sub(ktime_get(), kt);
     return (ssize_t) ktime_to_ns(kt);
 }
+
+#ifdef __TEST_KTIME
+static ssize_t (*const fibonacci_seq[])(long long) = {
+    fibseq_vla_timer,        fibseq_kmalloc_timer,    fibseq_fixedla_timer,
+    fibseq_exactsolv2_timer, fibseq_exactsolv3_timer,
+};
+#else
+static long long (*const fibonacci_seq[])(long long) = {
+    fib_sequence,      fibseq_kmalloc,    fibseq_fixedla,
+    fibseq_exactsolv2, fibseq_exactsolv3,
+};
+#endif
 
 static int fib_open(struct inode *inode, struct file *file)
 {
@@ -172,32 +184,7 @@ static ssize_t fib_write(struct file *file,
                          size_t method,
                          loff_t *offset)
 {
-    switch (method) {
-#ifdef perf_test
-    case 0:
-        return fib_sequence(*offset);
-    case 1:
-        return fib_seq_kmalloc(*offset);
-    case 2:
-        return fib_seq_fixedla(*offset);
-    case 3:
-        return fib_seq_exactsol2(*offset);
-    case 4:
-        return fib_seq_exactsol3(*offset);
-#else
-    case 0:
-        return fibseq_vla_timer(*offset);
-    case 1:
-        return fibseq_kmalloc_timer(*offset);
-    case 2:
-        return fibseq_fixedla_timer(*offset);
-    case 3:
-        return fibseq_exactsol2_timer(*offset);
-    case 4:
-        return fibseq_exactsol3_timer(*offset);
-#endif
-    }
-    return 1;
+    return fibonacci_seq[method](*offset);
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
