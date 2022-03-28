@@ -97,7 +97,7 @@ static inline ssize_t fibseq_fixedla_timer(long long k)
 static long long fibseq_exactsolv2(long long k)
 {
     long long a = 1, b = 1;
-    if (unlikely(k == 0 || k == 1))
+    if (unlikely(k < 2))
         return k;
 
     for (int i = 2; i <= k; ++i) {
@@ -121,7 +121,7 @@ static inline ssize_t fibseq_exactsolv2_timer(long long k)
 static long long fibseq_exactsolv3(long long k)
 {
     long long a = 1, b = 1;
-    if (unlikely(k == 0 || k == 1))
+    if (unlikely(k < 2))
         return k;
 
     for (int i = 2; i <= k; ++i) {
@@ -142,15 +142,55 @@ static inline ssize_t fibseq_exactsolv3_timer(long long k)
     return (ssize_t) ktime_to_ns(kt);
 }
 
+static long long fibseq_fastdoubling(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the right-most bit */
+    long long mask = 1L << 62;
+    while (!(k & mask))
+        mask >>= 1;
+
+    pr_info("Fibdrv: %lld\n", mask);
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
 #ifdef __TEST_KTIME
 static ssize_t (*const fibonacci_seq[])(long long) = {
-    fibseq_vla_timer,        fibseq_kmalloc_timer,    fibseq_fixedla_timer,
-    fibseq_exactsolv2_timer, fibseq_exactsolv3_timer,
-};
+    fibseq_vla_timer,        fibseq_kmalloc_timer,
+    fibseq_fixedla_timer,    fibseq_exactsolv2_timer,
+    fibseq_exactsolv3_timer, fibseq_fastdoubling_timer};
 #else
 static long long (*const fibonacci_seq[])(long long) = {
     fib_sequence,      fibseq_kmalloc,    fibseq_fixedla,
-    fibseq_exactsolv2, fibseq_exactsolv3,
+    fibseq_exactsolv2, fibseq_exactsolv3, fibseq_fastdoubling,
 };
 #endif
 
