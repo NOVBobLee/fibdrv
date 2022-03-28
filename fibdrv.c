@@ -94,6 +94,54 @@ static inline ssize_t fibseq_fixedla_timer(long long k)
     return (ssize_t) ktime_to_ns(kt);
 }
 
+static long long fib_seq_exactsol2(long long k)
+{
+    long long a = 1, b = 1;
+    if (unlikely(k == 0 || k == 1))
+        return k;
+
+    for (int i = 2; i <= k; ++i) {
+        long long tmp_a = (a + 5 * b) >> 1;
+        b = (a + b) >> 1;
+        a = tmp_a;
+    }
+
+    return b;
+}
+
+static inline ssize_t fibseq_exactsol2_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fib_seq_exactsol2(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fib_seq_exactsol3(long long k)
+{
+    long long a = 1, b = 1;
+    if (unlikely(k == 0 || k == 1))
+        return k;
+
+    for (int i = 2; i <= k; ++i) {
+        long long old_b = b;
+        b = (a & b) + (a ^ b) >> 1;
+        a = (old_b << 1) + b;
+    }
+
+    return b;
+}
+
+static inline ssize_t fibseq_exactsol3_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fib_seq_exactsol3(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -132,6 +180,10 @@ static ssize_t fib_write(struct file *file,
         return fib_seq_kmalloc(*offset);
     case 2:
         return fib_seq_fixedla(*offset);
+    case 3:
+        return fib_seq_exactsol2(*offset);
+    case 4:
+        return fib_seq_exactsol3(*offset);
 #else
     case 0:
         return fibseq_vla_timer(*offset);
@@ -139,6 +191,10 @@ static ssize_t fib_write(struct file *file,
         return fibseq_kmalloc_timer(*offset);
     case 2:
         return fibseq_fixedla_timer(*offset);
+    case 3:
+        return fibseq_exactsol2_timer(*offset);
+    case 4:
+        return fibseq_exactsol3_timer(*offset);
 #endif
     }
     return 1;
