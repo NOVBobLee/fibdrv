@@ -17,8 +17,8 @@ declare -a origs
 
 declare -a expts
 expts+=(01_userkernel)
-expts+=(02_vlafree)
-expts+=(03_vlafree_perf)
+expts+=(02_times)
+expts+=(03_perf)
 
 which_expt=$1
 is_perf=$2 # 1 or 0 (true or false)

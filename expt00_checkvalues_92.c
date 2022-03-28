@@ -1,3 +1,8 @@
+/*
+ * This experiment checks the result output from the Fibonacci module.
+ *
+ * Usage: ./expt00_checkvalues_92 <method-number>
+ */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +52,7 @@ int main(int argc, char *argv[])
         lseek(fd_fib, fib_i, SEEK_SET);
         long long result = write(fd_fib, buf, method);
 
-        long long diff = result - fib;
+        long long diff = llabs(result - fib);
         fprintf(fp_out, "%d %lld %lld %lld\n", fib_i, diff, fib, result);
     }
     free(linep);

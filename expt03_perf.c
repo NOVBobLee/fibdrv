@@ -1,9 +1,7 @@
 /*
- * This experiment is made for using perf utility, the execution is similar to
- * experiment 02 - vlafree, but it's pure computation without the hrtimer and
- * the statistics.
+ * This experiment is made for using perf utility.
  *
- * Usage: ./expt03_vlafree_perf <method-number>
+ * Usage: ./expt03_perf <method-number>
  */
 #include <fcntl.h>
 #include <stdio.h>
@@ -20,7 +18,7 @@ int main(int argc, char *argv[])
 {
     char buf[1] = {'\0'};
     if (argc < 2) {
-        printf("Usage: ./expt03_vlafree_perf <method-number>\n");
+        printf("Usage: ./expt03_perf <method-number>\n");
         exit(1);
     }
     int method = atoi(argv[1]);

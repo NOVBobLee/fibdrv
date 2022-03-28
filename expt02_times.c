@@ -1,8 +1,5 @@
 /*
- * This program tests the time spent of Fibonacci sequence computing in
- * different methods (VLA/kmalloc/fixed-length array)
- *
- * All methods uses the definition of Fibonacci seq.
+ * This experiment test the execution time in the kernel space.
  *
  * It generates 1000 samples and then only pick the samples in 95% confidence
  * interval.
@@ -15,12 +12,12 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define OUT_FILE "data/02_vlafree_data.out"
+#define OUT_FILE "data/02_times_data.out"
 
 #define NFIB 92
 #define NSAMPLE 1000
-#define NMETHOD 3
-enum { VLA, KMALLOC, FLA };
+#define NMETHOD 6
+enum { VLA, KMALLOC, FLA, EXACTSOL2, EXACTSOL3, FASTDBL };
 
 int main(void)
 {
