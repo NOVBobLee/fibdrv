@@ -38,6 +38,7 @@ cscope.*
 tags
 
 # experiment's programs
+expt00_checkvalues_92
 expt01_userkernel
 expt02_vlafree
 expt03_vlafree_perf

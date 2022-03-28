@@ -10,6 +10,7 @@ PWD := $(shell pwd)
 GIT_HOOKS := .git/hooks/applied
 
 USR := client\
+	   expt00_checkvalues_92\
 	   expt01_userkernel\
 	   expt02_vlafree\
 	   expt03_vlafree_perf\
@@ -50,6 +51,13 @@ check: all
 # arg1: which experiment (0-based)
 # arg2: is perf ?
 # arg3: experiment arg
+
+mycheck92: all
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	$(MAKE) unload
+	$(MAKE) load
+	sudo ./expt00_checkvalues_92 4
+	$(MAKE) unload
 
 expt01: all
 	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
