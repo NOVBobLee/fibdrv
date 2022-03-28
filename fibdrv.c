@@ -147,12 +147,10 @@ static long long fibseq_fastdoubling(long long k)
     if (unlikely(k < 2))
         return k;
 
-    /* find the right-most bit */
+    /* find the left-most bit */
     long long mask = 1L << 62;
     while (!(k & mask))
         mask >>= 1;
-
-    pr_info("Fibdrv: %lld\n", mask);
 
     /* fast doubling */
     long long a = 0, b = 1;
