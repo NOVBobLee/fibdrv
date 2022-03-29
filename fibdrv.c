@@ -96,10 +96,10 @@ static inline ssize_t fibseq_fixedla_timer(long long k)
 
 static long long fibseq_exactsolv2(long long k)
 {
-    long long a = 1, b = 1;
     if (unlikely(k < 2))
         return k;
 
+    long long a = 1, b = 1;
     for (int i = 2; i <= k; ++i) {
         long long tmp_a = (a + 5 * b) >> 1;
         b = (a + b) >> 1;
@@ -120,10 +120,10 @@ static inline ssize_t fibseq_exactsolv2_timer(long long k)
 
 static long long fibseq_exactsolv3(long long k)
 {
-    long long a = 1, b = 1;
     if (unlikely(k < 2))
         return k;
 
+    long long a = 1, b = 1;
     for (int i = 2; i <= k; ++i) {
         long long old_b = b;
         b = (a & b) + ((a ^ b) >> 1);
@@ -148,9 +148,7 @@ static long long fibseq_fastdoubling(long long k)
         return k;
 
     /* find the left-most bit */
-    long long mask = 1L << 62;
-    while (!(k & mask))
-        mask >>= 1;
+    long long mask = 1L << __fls((unsigned long) k);
 
     /* fast doubling */
     long long a = 0, b = 1;
@@ -182,9 +180,9 @@ static inline ssize_t fibseq_fastdoubling_timer(long long k)
 
 #ifdef __TEST_KTIME
 static ssize_t (*const fibonacci_seq[])(long long) = {
-    fibseq_vla_timer,        fibseq_kmalloc_timer,
-    fibseq_fixedla_timer,    fibseq_exactsolv2_timer,
-    fibseq_exactsolv3_timer, fibseq_fastdoubling_timer};
+    fibseq_vla_timer,        fibseq_kmalloc_timer,    fibseq_fixedla_timer,
+    fibseq_exactsolv2_timer, fibseq_exactsolv3_timer, fibseq_fastdoubling_timer,
+};
 #else
 static long long (*const fibonacci_seq[])(long long) = {
     fib_sequence,      fibseq_kmalloc,    fibseq_fixedla,

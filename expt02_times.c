@@ -16,8 +16,20 @@
 
 #define NFIB 92
 #define NSAMPLE 1000
+
+enum {
+    VLA,
+    KMALLOC,
+    FLA,
+    EXACTSOL2,
+    EXACTSOL3,
+    FASTDBL,
+};
 #define NMETHOD 6
-enum { VLA, KMALLOC, FLA, EXACTSOL2, EXACTSOL3, FASTDBL };
+int methods[NMETHOD] = {
+    VLA, KMALLOC, FLA, EXACTSOL2, EXACTSOL3, FASTDBL,
+};
+
 
 int main(void)
 {
@@ -44,7 +56,7 @@ int main(void)
         /* sampling */
         for (int method = 0; method < NMETHOD; ++method) {
             for (int n = 0; n < NSAMPLE; ++n) {
-                times[method][n] = write(fd_fib, buf, method);
+                times[method][n] = write(fd_fib, buf, methods[method]);
                 mean[method] += times[method][n];
             }
             mean[method] /= NSAMPLE;

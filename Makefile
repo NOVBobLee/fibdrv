@@ -49,7 +49,7 @@ check: all
 
 # ./expt00_checkvalues_92 arg1
 # arg1: which method
-expt00: all
+expt00: $(USR)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 	$(MAKE) unload
 	$(MAKE) load
@@ -68,7 +68,7 @@ expt01: all
 	sudo ./scripts/expt.sh 0 0
 	$(MAKE) unload
 
-expt02: all
+expt02: $(USR)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
