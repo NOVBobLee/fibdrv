@@ -47,7 +47,7 @@ check: all
 	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
 
-# ./expt00_checkvalues_92 arg1
+# ./expt00_checkvalues_92 <arg1>
 # arg1: which method
 expt00: $(USR)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
@@ -55,8 +55,9 @@ expt00: $(USR)
 	$(MAKE) load
 	sudo ./expt00_checkvalues_92 5
 	$(MAKE) unload
+	gnuplot scripts/plot00_checkvalues_92.gp
 
-# expt.sh arg1 arg2 arg3
+# expt.sh <arg1> <arg2> <arg3>
 # arg1: which experiment (0-based)
 # arg2: is perf ?
 # arg3: experiment arg
@@ -87,7 +88,7 @@ expt03: all
 expt04: expt04_exactsol.c
 	$(CC) -o expt04_exactsol $< -lm
 	./expt04_exactsol
-	gnuplot scripts/plot04_exactsol.gp
+	gnuplot scripts/plot00_checkvalues_92.gp
 
 cscope_tags:
 	@rm -f cscope.* tags

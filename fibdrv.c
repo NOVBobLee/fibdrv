@@ -148,7 +148,7 @@ static long long fibseq_fastdoubling(long long k)
         return k;
 
     /* find the left-most bit */
-    long long mask = 1L << __fls((unsigned long) k);
+    long long mask = 1ULL << __fls((unsigned long) k);
 
     /* fast doubling */
     long long a = 0, b = 1;

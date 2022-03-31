@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define IN_FILE "scripts/fib_to_92.txt"
-#define OUT_FILE "data/04_exactsol_data.out"
+#define OUT_FILE "data/00_checkvalues_92_data.out"
 
 #define NFIB 92
 
