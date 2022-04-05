@@ -1,7 +1,10 @@
 CONFIG_MODULE_SIG = n
-TARGET_MODULE := fibdrv
+TARGET_MODULE := fibdrv_bn
 
 obj-m := $(TARGET_MODULE).o
+$(TARGET_MODULE)-objs := fibdrv.o\
+						 bn_fib.o
+
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
 KDIR := /lib/modules/$(shell uname -r)/build
@@ -46,6 +49,13 @@ check: all
 	$(MAKE) unload
 	@diff -u out scripts/expected.txt && $(call pass)
 	@scripts/verify.py
+
+bn_check: $(USR)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__BN_KERNEL
+	$(MAKE) unload
+	$(MAKE) load
+	sudo ./client
+	$(MAKE) unload
 
 # ./expt00_checkvalues_92 <arg1>
 # arg1: which method

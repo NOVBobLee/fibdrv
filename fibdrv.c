@@ -8,6 +8,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
+#include "bn_fib.h"
+
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
 MODULE_DESCRIPTION("Fibonacci engine driver");
@@ -212,7 +214,13 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    fbn *fib = fbn_alloc(1);
+    fbn_fib_defi(fib, *offset);
+    char *str = fbn_print(fib);
+    size_t left = copy_to_user(buf, str, strlen(str) + 1);
+    kfree(str);
+    fbn_free(fib);
+    return left;
 }
 
 /* write operation is skipped */
