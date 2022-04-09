@@ -1,5 +1,17 @@
 #include "bn_fib.h"
 
+/* Swap two fbn pointers */
+#define fbn_swap(a, b) \
+    ({                 \
+        fbn *tmp = a;  \
+        a = b;         \
+        b = tmp;       \
+    })
+/* Modulo 32 */
+#define MOD32(x) ((x) & ((1U << 5) - 1))
+/* Round-Up 32 bits */
+#define ROUNDUP32(x) (((x) + (1U << 5) - 1) & ~((1U << 5) - 1))
+
 /*
  * Allocate fbn.
  * @len: the length of fbn's num
@@ -70,6 +82,24 @@ int fbn_copy(fbn *des, fbn *src)
     return 0;
 }
 
+/* Swap two fbn contents. */
+static void fbn_swap_content(fbn *a, fbn *b)
+{
+    u32 *num = a->num;
+    a->num = b->num;
+    b->num = num;
+    int len = a->len;
+    a->len = b->len;
+    b->len = len;
+}
+
+/* Print fbn in hex (Debug: dmesg) */
+void fbn_printhex(fbn *obj)
+{
+    for (int i = obj->len - 1; i >= 0; --i)
+        pr_info("fibdrv: %d %#010x\n", i, obj->num[i]);
+}
+
 /* Print fbn into a string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj)
 {
@@ -96,6 +126,77 @@ char *fbn_print(const fbn *obj)
     return str;
 }
 
+/*
+ * Left-shift fbn's num in 32 bits.
+ * @obj: fbn object
+ * @k: shift @k bits, k <= 32, take modulus 32
+ */
+void fbn_lshift32(fbn *obj, int k)
+{
+    if (unlikely(!k))
+        return;
+    /* 1 <= k <= 32 */
+    u32 kmod32 = MOD32(k);
+    k = kmod32 + (!kmod32 << 5);
+
+    /* shift and combine the carry bits */
+    u64 bcabinet = 0;
+    for (int i = 0; i < obj->len; ++i) {
+        bcabinet = (u64) obj->num[i] << k | bcabinet;
+        obj->num[i] = bcabinet;
+        bcabinet >>= 32;
+    }
+    /* no enough length for storing the carry bits */
+    if (bcabinet) {
+        fbn_resize(obj, obj->len + 1);
+        obj->num[obj->len - 1] = bcabinet;
+    }
+}
+
+/*
+ * Left-shift fbn's num (general).
+ * @obj: fbn object, num cannot be 0
+ * @k: shift @k bits (no limit)
+ */
+void fbn_lshift(fbn *obj, int k)
+{
+    if (unlikely(!k))
+        return;
+    int shift_bit = MOD32(k);
+    int shift_elmt = k >> 5;
+    /* Be careful, obj->num[obj->len - 1] cannot be zero. If met, it means
+     * there's zero elements in the high position of num didn't truncated */
+    int new_elmt = (k + fls(obj->num[obj->len - 1]) - 1) >> 5;
+    fbn_resize(obj, obj->len + new_elmt);
+
+    /*               0     1       (len - 1)
+     * obj->num = | xxx | xxx | ... | xxx |
+     *               ^     ^  ^  ^     ^
+     *              low     middle    high
+     */
+    int shift_back = 32 - shift_bit;
+    u32 mask = -(1U << shift_back);
+    /* high part */
+    int i = obj->len - 1;
+    if (new_elmt > shift_elmt) {
+        obj->num[i] = (obj->num[i - shift_elmt - 1] & mask) >> shift_back;
+        --i;
+    }
+    /* middle part */
+    for (; i > shift_elmt; --i) { /* i >= shift_elmt + 1 */
+        obj->num[i] = (obj->num[i - shift_elmt] << shift_bit) |
+                      (obj->num[i - 1 - shift_elmt] & mask) >> shift_back;
+    }
+    /* low part */
+    if (i == shift_elmt) {
+        obj->num[i] = obj->num[i - shift_elmt] << shift_bit;
+        --i;
+    }
+    /* remaining zeros part */
+    for (; i >= 0; --i)
+        obj->num[i] = 0;
+}
+
 /* c = a + b, addition assignment (a += b) is also acceptable */
 void fbn_add(fbn *c, fbn *a, fbn *b)
 {
@@ -105,25 +206,82 @@ void fbn_add(fbn *c, fbn *a, fbn *b)
     fbn_resize(c, a->len);
 
     /* addition operation (same length part) */
-    int i, len = b->len;
+    int i;
     u64 bcabinet = 0;
-    for (i = 0; i < len; ++i) {
+    for (i = 0; i < b->len; ++i) {
         bcabinet += (u64) a->num[i] + b->num[i];
         c->num[i] = bcabinet;
         bcabinet >>= 32;
     }
     /* addition operation (remaining part) */
-    len = a->len;
-    for (; i < len; ++i) {
+    for (; i < a->len; ++i) {
         bcabinet += (u64) a->num[i];
         c->num[i] = bcabinet;
         bcabinet >>= 32;
     }
     /* if the carry is still remained */
     if (unlikely(bcabinet)) {
-        fbn_resize(c, len + 1);
-        c->num[len] = bcabinet; /* bcabinet = 1 */
+        fbn_resize(c, a->len + 1);
+        c->num[c->len - 1] = bcabinet; /* bcabinet = 1 */
     }
+}
+
+/* c = a - b, where a >= b. a -= b is also acceptable */
+void fbn_sub(fbn *c, fbn *a, fbn *b)
+{
+    fbn_resize(c, a->len);
+
+    int i;
+    u32 borrow = 0;
+    u64 subtrahend;
+    for (i = 0; i < b->len; ++i) {
+        subtrahend = (u64) b->num[i] + borrow;
+        borrow = subtrahend > a->num[i];
+        c->num[i] = a->num[i] - (u32) subtrahend;
+    }
+    for (; i < a->len; ++i) {
+        subtrahend = (u64) borrow;
+        borrow = subtrahend > a->num[i];
+        c->num[i] = a->num[i] - (u32) subtrahend;
+    }
+    /* truncate the leading zero elements */
+    for (i = c->len - 1; i >= 0 && !c->num[i]; --i)
+        ;
+    fbn_resize(c, i + 1 + (i == -1)); /* avoid i == -1, happens when num
+                                         is 0, although fbn won't happen */
+}
+
+/* c = a * b (long multiplication). a *= b is also acceptable */
+void fbn_mul(fbn *c, fbn *a, fbn *b)
+{
+    /* Be careful, num[obj->len - 1] cannot be zero. If met, it means
+     * there's zero elements in the high position of num didn't truncated */
+    int new_len =
+        a->len + b->len - 2 +
+        (ROUNDUP32(fls(a->num[a->len - 1]) + fls(b->num[b->len - 1])) >> 5);
+    fbn *pseudo_c = fbn_alloc(new_len); /* need an all zero array */
+
+    /* long multiplication */
+    for (int offset = 0; offset < b->len; ++offset) {
+        int pc_idx = 0; /* for suppressing cppcheck */
+        u64 bcabinet = 0;
+        /* c += a * (b->num[offset]) */
+        for (int i = 0; i < a->len; ++i) {
+            pc_idx = i + offset;
+            bcabinet +=
+                (u64) a->num[i] * b->num[offset] + pseudo_c->num[pc_idx];
+            pseudo_c->num[pc_idx] = bcabinet;
+            bcabinet >>= 32;
+        }
+        pseudo_c->num[pc_idx + 1] = bcabinet; /* maybe it's 0 */
+    }
+    /* truncate the leading zero element */
+    if (!pseudo_c->num[new_len - 1])
+        fbn_resize(pseudo_c, new_len - 1);
+
+    /* pass the content to c */
+    fbn_swap_content(pseudo_c, c);
+    fbn_free(pseudo_c);
 }
 
 /*
@@ -147,5 +305,8 @@ void fbn_fib_defi(fbn *des, int n)
     arr[1]->num[0] = 1;
     for (int i = 2; i <= n; ++i)
         fbn_add(arr[i & 1], arr[i & 1], arr[(i - 1) & 1]);
-    fbn_copy(des, arr[n & 1]);
+    fbn_swap_content(des, arr[n & 1]);
+
+    fbn_free(arr[0]);
+    fbn_free(arr[1]);
 }

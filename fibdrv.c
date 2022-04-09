@@ -145,13 +145,15 @@ static inline ssize_t fibseq_exactsolv3_timer(long long k)
     return (ssize_t) ktime_to_ns(kt);
 }
 
-static long long fibseq_fastdoubling(long long k)
+static long long fibseq_fastdoubling_loop62(long long k)
 {
     if (unlikely(k < 2))
         return k;
 
     /* find the left-most bit */
-    long long mask = 1ULL << __fls((unsigned long) k);
+    unsigned long long mask = 1ULL << 62;
+    while (!(k & mask))
+        mask >>= 1;
 
     /* fast doubling */
     long long a = 0, b = 1;
@@ -172,24 +174,228 @@ static long long fibseq_fastdoubling(long long k)
     return a;
 }
 
-static inline ssize_t fibseq_fastdoubling_timer(long long k)
+static inline ssize_t fibseq_fastdoubling_loop62_timer(long long k)
 {
     ktime_t kt;
     kt = ktime_get();
-    fibseq_fastdoubling(k);
+    fibseq_fastdoubling_loop62(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fibseq_fastdoubling_loop31(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the left-most bit */
+    unsigned mask = 1U << 31;
+    while (!(k & mask))
+        mask >>= 1;
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_loop31_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling_loop31(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fibseq_fastdoubling_loop16(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the left-most bit */
+    unsigned mask = 1U << 16;
+    while (!(k & mask))
+        mask >>= 1;
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_loop16_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling_loop16(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fibseq_fastdoubling_loop6(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the left-most bit */
+    unsigned mask = 1U << 6;
+    while (!(k & mask))
+        mask >>= 1;
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_loop6_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling_loop6(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fibseq_fastdoubling_fls(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the left-most bit */
+    unsigned mask = 1U << (fls((unsigned) k) - 1);
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_fls_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling_fls(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return (ssize_t) ktime_to_ns(kt);
+}
+
+static long long fibseq_fastdoubling_clz(long long k)
+{
+    if (unlikely(k < 2))
+        return k;
+
+    /* find the left-most bit */
+    unsigned mask = 1U << (31 - __builtin_clz((unsigned) k));
+
+    /* fast doubling */
+    long long a = 0, b = 1;
+    while (mask) {
+        /* times 2 */
+        long long tmp = a;
+        a = a * ((b << 1) - a);
+        b = tmp * tmp + b * b;
+
+        /* plus 1 */
+        if (k & mask) {
+            tmp = b;
+            b += a;
+            a = tmp;
+        }
+        mask >>= 1;
+    }
+    return a;
+}
+
+static inline ssize_t fibseq_fastdoubling_clz_timer(long long k)
+{
+    ktime_t kt;
+    kt = ktime_get();
+    fibseq_fastdoubling_clz(k);
     kt = ktime_sub(ktime_get(), kt);
     return (ssize_t) ktime_to_ns(kt);
 }
 
 #ifdef __TEST_KTIME
 static ssize_t (*const fibonacci_seq[])(long long) = {
-    fibseq_vla_timer,        fibseq_kmalloc_timer,    fibseq_fixedla_timer,
-    fibseq_exactsolv2_timer, fibseq_exactsolv3_timer, fibseq_fastdoubling_timer,
+    fibseq_vla_timer,
+    fibseq_kmalloc_timer,
+    fibseq_fixedla_timer,
+    fibseq_exactsolv2_timer,
+    fibseq_exactsolv3_timer,
+    fibseq_fastdoubling_loop62_timer,
+    fibseq_fastdoubling_loop31_timer,
+    fibseq_fastdoubling_loop16_timer,
+    fibseq_fastdoubling_loop6_timer,
+    fibseq_fastdoubling_fls_timer,
+    fibseq_fastdoubling_clz_timer,
 };
 #else
 static long long (*const fibonacci_seq[])(long long) = {
-    fib_sequence,      fibseq_kmalloc,    fibseq_fixedla,
-    fibseq_exactsolv2, fibseq_exactsolv3, fibseq_fastdoubling,
+    fib_sequence,               /* 0 */
+    fibseq_kmalloc,             /* 1 */
+    fibseq_fixedla,             /* 2 */
+    fibseq_exactsolv2,          /* 3 */
+    fibseq_exactsolv3,          /* 4 */
+    fibseq_fastdoubling_loop62, /* 5 */
+    fibseq_fastdoubling_loop31, /* 5 */
+    fibseq_fastdoubling_loop16, /* 6 */
+    fibseq_fastdoubling_loop6,  /* 7 */
+    fibseq_fastdoubling_fls,    /* 8 */
+    fibseq_fastdoubling_clz,    /* 9 */
 };
 #endif
 
@@ -220,6 +426,35 @@ static ssize_t fib_read(struct file *file,
     size_t left = copy_to_user(buf, str, strlen(str) + 1);
     kfree(str);
     fbn_free(fib);
+#ifdef BN_DEBUG
+    fbn *a = fbn_alloc(1);
+    fbn *b = fbn_alloc(1);
+
+    fbn_assign(a, 0, 0xffffffff);
+    fbn_assign(b, 0, 0x0000ffff);
+
+    fbn_add(a, a, b); /* a += b */
+    fbn_printhex(a);
+
+    fbn_sub(a, a, b); /* a -= b */
+    fbn_printhex(a);
+
+    fbn_lshift32(a, 16); /* a <<= 16 */
+    fbn_printhex(a);
+
+    fbn_lshift(a, 48); /* a <<= 48 */
+    fbn_printhex(a);
+
+    fbn_assign(b, 0, 0xffffffff);
+    fbn_lshift32(b, 32);
+    fbn_assign(b, 0, 0xffffffff); /* b = 0xffffffff'ffffffff */
+    fbn_copy(a, b);               /* a = b */
+    fbn_mul(a, a, b);             /* a *= b */
+    fbn_printhex(a);
+
+    fbn_free(a);
+    fbn_free(b);
+#endif /* BN_DEBUG */
     return left;
 }
 

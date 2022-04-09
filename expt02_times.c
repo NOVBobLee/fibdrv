@@ -23,11 +23,30 @@ enum {
     FLA,
     EXACTSOL2,
     EXACTSOL3,
-    FASTDBL,
+    FASTDBL_L62,
+    FASTDBL_L31,
+    FASTDBL_L16,
+    FASTDBL_L6,
+    FASTDBL_FLS,
+    FASTDBL_CLZ,
 };
-#define NMETHOD 6
+#define NMETHOD 5
 int methods[NMETHOD] = {
-    VLA, KMALLOC, FLA, EXACTSOL2, EXACTSOL3, FASTDBL,
+    VLA,         KMALLOC, FLA,
+#if 0
+    EXACTSOL2,
+#endif
+    EXACTSOL3,
+#if 0
+    FASTDBL_L62,
+    FASTDBL_L31,
+    FASTDBL_L16,
+    FASTDBL_L6,
+#endif
+    FASTDBL_FLS,
+#if 0
+    FASTDBL_CLZ,
+#endif
 };
 
 

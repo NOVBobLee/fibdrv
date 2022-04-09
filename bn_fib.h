@@ -10,9 +10,9 @@
  *       so storing a big number larger than 4 bytes will
  *       be like bellow:
  *
- * fedc'ba98'7654'3210 => | 3210 | 7654 | ba98 | ... |
- * (numbers represent        ^      ^      ^
- *  bytes)                 num[0] num[1] num[2]  ...
+ * 0xba98'7654'3210 => | 76543210 | 0000ba98 | ... |
+ *                           ^          ^
+ *                         num[0]     num[1]
  *
  * [len] is the length of the array
  */
@@ -27,7 +27,6 @@ typedef struct {
  * Return fbn with length @len and num is all zeros.
  */
 fbn *fbn_alloc(int len);
-
 /* Free fbn, return 0 on success and -1 on failure */
 int fbn_free(fbn *obj);
 
@@ -39,14 +38,6 @@ int fbn_free(fbn *obj);
  */
 #define fbn_assign(obj, n, value) ((obj)->num[(n)] = (value))
 
-/* Swap two fbn pointers */
-#define fbn_swap(a, b) \
-    ({                 \
-        fbn *tmp = a;  \
-        a = b;         \
-        b = tmp;       \
-    })
-
 /*
  * Copy fbn to another fbn.
  * @des: the copy destination of fbn
@@ -54,12 +45,29 @@ int fbn_free(fbn *obj);
  * Return 0 on success and -1 on failure.
  */
 int fbn_copy(fbn *des, fbn *src);
-
+/* Print fbn in hex (Debug: dmesg) */
+void fbn_printhex(fbn *obj);
 /* Print fbn to string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj);
 
+/*
+ * Left-shift fbn's num in 32 bits.
+ * @obj: fbn object
+ * @k: shift @k bits, k <= 32
+ */
+void fbn_lshift32(fbn *obj, int k);
+/*
+ * Left-shift fbn's num (general).
+ * @obj: fbn object, num cannot be 0
+ * @k: shift @k bits (no limit)
+ */
+void fbn_lshift(fbn *obj, int k);
 /* c = a + b, addition assignment (c += a) is also acceptable */
 void fbn_add(fbn *c, fbn *a, fbn *b);
+/* c = a - b, where a >= b. a -= b is also acceptable */
+void fbn_sub(fbn *c, fbn *a, fbn *b);
+/* c = a * b (long multiplication). a *= b is also acceptable */
+void fbn_mul(fbn *c, fbn *a, fbn *b);
 
 /*
  * Calculate the nth Fibonacci number with definition.
