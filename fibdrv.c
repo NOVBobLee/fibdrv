@@ -426,7 +426,8 @@ static ssize_t fib_read(struct file *file,
     size_t left = copy_to_user(buf, str, strlen(str) + 1);
     kfree(str);
     fbn_free(fib);
-#ifdef BN_DEBUG
+#ifdef FBN_DEBUG
+    pr_info("fibdrv_debug: test starts..\n");
     fbn *a = fbn_alloc(1);
     fbn *b = fbn_alloc(1);
 
@@ -434,27 +435,34 @@ static ssize_t fib_read(struct file *file,
     fbn_assign(b, 0, 0x0000ffff);
 
     fbn_add(a, a, b); /* a += b */
-    fbn_printhex(a);
+    fbndebug_printhex(a);
 
     fbn_sub(a, a, b); /* a -= b */
-    fbn_printhex(a);
+    fbndebug_printhex(a);
 
     fbn_lshift32(a, 16); /* a <<= 16 */
-    fbn_printhex(a);
+    fbndebug_printhex(a);
 
     fbn_lshift(a, 48); /* a <<= 48 */
-    fbn_printhex(a);
+    fbndebug_printhex(a);
 
-    fbn_assign(b, 0, 0xffffffff);
-    fbn_lshift32(b, 32);
-    fbn_assign(b, 0, 0xffffffff); /* b = 0xffffffff'ffffffff */
-    fbn_copy(a, b);               /* a = b */
-    fbn_mul(a, a, b);             /* a *= b */
-    fbn_printhex(a);
+    fbn_assign(a, 0, 0xffffffff);
+    fbn_assign(a, 1, 0xffffffff);
+    fbn_assign(a, 2, 0xffffffff); /* a = 0xffffffff'ffffffff'ffffffff */
+    fbn_assign(b, 0, 0x1);
+    fbn_lshift(b, 96);
+    fbn_assign(b, 0, 0x1); /* b = 0x1'00000000'00000000'00000001 */
+    fbn_mul(a, a, b);      /* a *= b */
+    fbndebug_printhex(a);
+
+    fbn_copy(b, a);
+    fbn_sub(a, a, b);
+    fbndebug_printhex(a); /* test truncating leading zero elements */
 
     fbn_free(a);
     fbn_free(b);
-#endif /* BN_DEBUG */
+    pr_info("fibdrv_debug: test ends..\n");
+#endif /* FBN_DEBUG */
     return left;
 }
 

@@ -93,12 +93,15 @@ static void fbn_swap_content(fbn *a, fbn *b)
     b->len = len;
 }
 
-/* Print fbn in hex (Debug: dmesg) */
-void fbn_printhex(fbn *obj)
+#ifdef FBN_DEBUG
+/* Print fbn in hex (Debug: use dmesg) */
+void fbndebug_printhex(fbn *obj)
 {
     for (int i = obj->len - 1; i >= 0; --i)
-        pr_info("fibdrv: %d %#010x\n", i, obj->num[i]);
+        pr_info("fibdrv_debug: %d %#010x\n", i, obj->num[i]);
+    pr_info("fibdrv_debug: - ----------\n");
 }
+#endif /* FBN_DEBUG */
 
 /* Print fbn into a string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj)

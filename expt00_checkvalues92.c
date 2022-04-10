@@ -1,7 +1,5 @@
 /*
  * This experiment checks the result output from the Fibonacci module.
- *
- * Usage: ./expt00_checkvalues_92 <method-number>
  */
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,21 +9,30 @@
 
 #define FIB_DEV "/dev/fibonacci"
 #define IN_FILE "scripts/fib_to_92.txt"
-#define OUT_FILE "data/00_checkvalues_92_data.out"
+#define OUT_FILE "data/00_checkvalues92_data.out"
 
 #define NFIB 92
 
-int main(int argc, char *argv[])
+enum {
+    VLA,
+    KMALLOC,
+    FLA,
+    EXACTSOL2,
+    EXACTSOL3,
+    FASTDBL_L62,
+    FASTDBL_L31,
+    FASTDBL_L16,
+    FASTDBL_L6,
+    FASTDBL_FLS,
+    FASTDBL_CLZ,
+};
+#define METHOD FASTDBL_FLS
+
+int main(void)
 {
     char *linep = malloc(sizeof(char) * 20);
     unsigned long linepsize = 20;
     char buf[1] = {'\0'};
-
-    if (argc < 2) {
-        printf("Usage: ./check_values_92 <method-num>\n");
-        exit(4);
-    }
-    int method = atoi(argv[1]);
 
     int fd_fib = open(FIB_DEV, O_RDWR);
     if (fd_fib < 0) {
@@ -50,7 +57,7 @@ int main(int argc, char *argv[])
         getline(&linep, &linepsize, fp_in);
         long long fib = atoll(linep);
         lseek(fd_fib, fib_i, SEEK_SET);
-        long long result = write(fd_fib, buf, method);
+        long long result = write(fd_fib, buf, METHOD);
 
         long long diff = llabs(result - fib);
         fprintf(fp_out, "%d %lld %lld %lld\n", fib_i, diff, fib, result);

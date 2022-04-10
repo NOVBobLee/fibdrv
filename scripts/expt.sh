@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# NEED root privilege
 # @(1st arg): a number, which specifies executing which experiment
 #
 
@@ -16,23 +15,21 @@ declare -a files
 declare -a origs
 
 declare -a expts
+expts+=(00_checkvalues92)
 expts+=(01_userkernel)
 expts+=(02_times)
-expts+=(03_perf)
 
 which_expt=$1
-is_perf=$2 # 1 or 0 (true or false)
-arg_for_expt=$3
 
 cnt_f=-1
 
 expt_start() {
 	# turn off ASLR
-	echo 0 > ${F_ASLR}
+	sudo sh -c "echo 0 > ${F_ASLR}"
 	# switch to performance mode
-	echo performance > ${F_CPUFREQ}
+	sudo sh -c "echo performance > ${F_CPUFREQ}"
 	# turn off Intel turbo mode
-	echo 1 > ${F_TURBO}
+	sudo sh -c "echo 1 > ${F_TURBO}"
 	# save the smp_affinity masks and modify them
 	for file in `find /proc/irq -name "smp_affinity"`
 	do
@@ -44,10 +41,10 @@ expt_start() {
 		new=`printf '%02x' ${new}`
 		cnt_f=$((${cnt_f} + 1))
 		if [ ${cnt_f} != "0" ] && [ ${cnt_f} != "2" ]; then
-			echo ${new} > ${files[${cnt_f}]}
+			sudo sh -c "echo ${new} > ${files[${cnt_f}]}"
 		fi
 	done
-	echo 7f > ${F_DSMPAFF}
+	sudo sh -c "echo 7f > ${F_DSMPAFF}"
 }
 
 check_state() {
@@ -86,35 +83,26 @@ check_state() {
 
 expt_end() {
 	# recover the states
-	echo 2 > ${F_ASLR}
-	echo powersave > ${F_CPUFREQ}
-	echo 0 > ${F_TURBO}
+	sudo sh -c "echo 2 > ${F_ASLR}"
+	sudo sh -c "echo powersave > ${F_CPUFREQ}"
+	sudo sh -c "echo 0 > ${F_TURBO}"
 	for i in `seq 0 ${cnt_f}`; do
 		if [ ${i} != "0" ] && [ ${i} != "2" ]; then
-			echo ${origs[${i}]} > ${files[${i}]}
+			sudo sh -c "echo ${origs[${i}]} > ${files[${i}]}"
 		fi
 	done
-	echo ff > ${F_DSMPAFF}
+	sudo sh -c "echo ff > ${F_DSMPAFF}"
 }
 
 expt() {
 	expt_start
 	echo "Experiment start.."
-	if [ ${is_perf} = "1" ]; then
-		perf stat -r 10 -d -C 7 -e \
-			cycles,instructions,cache-references,cache-misses \
-			taskset -c 7 ./expt${expts[$which_expt]} ${arg_for_expt}
-	else
-		taskset -c 7 ./expt${expts[$which_expt]} ${arg_for_expt}
-	fi
+	sudo sh -c "taskset -c 7 ./expt${expts[$which_expt]}"
 	echo "Experiment end.."
 	expt_end
 }
 
 expt
 #check_state
-if [ ${is_perf} = "0" ]; then
-	gnuplot ./scripts/plot${expts[$which_expt]}.gp
-	chown ${user}:${group} ./data/${expts[$which_expt]}_data.out \
-						   ./data/${expts[$which_expt]}_pic.png
-fi
+gnuplot ./scripts/plot${expts[$which_expt]}.gp
+sudo sh -c "chown ${user}:${group} ./data/${expts[$which_expt]}_data.out"

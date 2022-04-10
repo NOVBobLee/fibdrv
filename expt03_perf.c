@@ -14,14 +14,24 @@
 #define NFIB 92
 #define REPEAT 2000000
 
-int main(int argc, char *argv[])
+enum {
+    VLA,
+    KMALLOC,
+    FLA,
+    EXACTSOL2,
+    EXACTSOL3,
+    FASTDBL_L62,
+    FASTDBL_L31,
+    FASTDBL_L16,
+    FASTDBL_L6,
+    FASTDBL_FLS,
+    FASTDBL_CLZ,
+};
+#define METHOD FASTDBL_FLS
+
+int main(void)
 {
     char buf[1] = {'\0'};
-    if (argc < 2) {
-        printf("Usage: ./expt03_perf <method-number>\n");
-        exit(1);
-    }
-    int method = atoi(argv[1]);
 
     int fd_fib = open(FIB_DEV, O_RDWR);
     if (fd_fib < 0) {
@@ -31,7 +41,7 @@ int main(int argc, char *argv[])
 
     lseek(fd_fib, NFIB, SEEK_SET);
     for (int i = 0; i < REPEAT; ++i)
-        write(fd_fib, buf, method);
+        write(fd_fib, buf, METHOD);
 
     close(fd_fib);
     return 0;

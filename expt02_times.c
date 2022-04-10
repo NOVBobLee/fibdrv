@@ -32,21 +32,7 @@ enum {
 };
 #define NMETHOD 5
 int methods[NMETHOD] = {
-    VLA,         KMALLOC, FLA,
-#if 0
-    EXACTSOL2,
-#endif
-    EXACTSOL3,
-#if 0
-    FASTDBL_L62,
-    FASTDBL_L31,
-    FASTDBL_L16,
-    FASTDBL_L6,
-#endif
-    FASTDBL_FLS,
-#if 0
-    FASTDBL_CLZ,
-#endif
+    VLA, KMALLOC, FLA, EXACTSOL3, FASTDBL_FLS,
 };
 
 

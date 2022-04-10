@@ -11,7 +11,7 @@ int main()
 {
     char buf[1000];
     buf[999] = '\0';
-    int offset = 100; /* TODO: try test something bigger than the limit */
+    int offset = 100;
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
