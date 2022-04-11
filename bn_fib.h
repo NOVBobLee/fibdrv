@@ -53,13 +53,14 @@ void fbndebug_printhex(fbn *obj);
 char *fbn_print(const fbn *obj);
 
 /*
- * Left-shift fbn's num in 32 bits.
- * @obj: fbn object
- * @k: shift @k bits, k <= 32
+ * Left-shift under 32 bits: b = a << k. a <<= k is also acceptable.
+ * @b: fbn object to store the result
+ * @a: fbn object to be shifted
+ * @k: shift @k bits, k <= 32, take modulus 32
  */
-void fbn_lshift32(fbn *obj, int k);
+void fbn_lshift32(fbn *b, fbn *a, int k);
 /*
- * Left-shift fbn's num (general).
+ * Left-shift (general): obj->num <<= k
  * @obj: fbn object, num cannot be 0
  * @k: shift @k bits (no limit)
  */
@@ -77,5 +78,11 @@ void fbn_mul(fbn *c, fbn *a, fbn *b);
  * @n: @n-th Fibonacci number
  */
 void fbn_fib_defi(fbn *des, int n);
+/*
+ * Calculate the nth Fibonacci number with fast doubling method.
+ * @des: fbn object to store @n-th Fibonacci number
+ * @n: @n-th Fibonacci number
+ */
+void fbn_fib_fastdoubling(fbn *des, int n);
 
 #endif /* __FBN_H_ */

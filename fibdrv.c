@@ -21,7 +21,7 @@ MODULE_VERSION("0.1");
  * ssize_t can't fit the number > 92
  */
 //#define MAX_LENGTH 92
-#define MAX_LENGTH 100
+#define MAX_LENGTH 10000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -383,6 +383,12 @@ static ssize_t (*const fibonacci_seq[])(long long) = {
     fibseq_fastdoubling_fls_timer,
     fibseq_fastdoubling_clz_timer,
 };
+
+// TODO: add ktimer
+static void (*const bn_fibonacci_seq[])(fbn *, int) = {
+    fbn_fib_defi,
+    fbn_fib_fastdoubling,
+};
 #else
 static long long (*const fibonacci_seq[])(long long) = {
     fib_sequence,               /* 0 */
@@ -396,6 +402,11 @@ static long long (*const fibonacci_seq[])(long long) = {
     fibseq_fastdoubling_loop6,  /* 7 */
     fibseq_fastdoubling_fls,    /* 8 */
     fibseq_fastdoubling_clz,    /* 9 */
+};
+
+static void (*const bn_fibonacci_seq[])(fbn *, int) = {
+    fbn_fib_defi,
+    fbn_fib_fastdoubling,
 };
 #endif
 
@@ -417,19 +428,29 @@ static int fib_release(struct inode *inode, struct file *file)
 /* calculate the fibonacci number at given offset */
 static ssize_t fib_read(struct file *file,
                         char *buf,
-                        size_t size,
+                        size_t method,
                         loff_t *offset)
 {
+#ifndef FBN_DEBUG
     fbn *fib = fbn_alloc(1);
-    fbn_fib_defi(fib, *offset);
+    bn_fibonacci_seq[method](fib, *offset);
     char *str = fbn_print(fib);
     size_t left = copy_to_user(buf, str, strlen(str) + 1);
     kfree(str);
     fbn_free(fib);
-#ifdef FBN_DEBUG
+    return left;
+#else  /* defined(FBN_DEBUG) */
     pr_info("fibdrv_debug: test starts..\n");
     fbn *a = fbn_alloc(1);
     fbn *b = fbn_alloc(1);
+
+    fbn_assign(b, 0, 0x0000ffff);
+
+    fbn_lshift32(a, b, 16); /* a = b << 16 */
+    fbndebug_printhex(a);
+
+    fbn_lshift32(b, b, 16); /* b <<= 16 */
+    fbndebug_printhex(b);
 
     fbn_assign(a, 0, 0xffffffff);
     fbn_assign(b, 0, 0x0000ffff);
@@ -440,7 +461,7 @@ static ssize_t fib_read(struct file *file,
     fbn_sub(a, a, b); /* a -= b */
     fbndebug_printhex(a);
 
-    fbn_lshift32(a, 16); /* a <<= 16 */
+    fbn_lshift32(a, a, 16); /* a <<= 16 */
     fbndebug_printhex(a);
 
     fbn_lshift(a, 48); /* a <<= 48 */
@@ -459,11 +480,14 @@ static ssize_t fib_read(struct file *file,
     fbn_sub(a, a, b);
     fbndebug_printhex(a); /* test truncating leading zero elements */
 
+    fbn_mul(a, a, b); /* a = 0 * b */
+    fbndebug_printhex(a);
+
     fbn_free(a);
     fbn_free(b);
     pr_info("fibdrv_debug: test ends..\n");
+    return 0;
 #endif /* FBN_DEBUG */
-    return left;
 }
 
 /* write operation is skipped */

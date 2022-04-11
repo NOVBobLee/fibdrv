@@ -7,12 +7,20 @@
 
 #define FIB_DEV "/dev/fibonacci"
 
+/* n-th Fibonacci number
+ * Be careful of the buf size, 10000-th Fibonacci needs 2901 digits */
+#define NFIB 10000
+
+enum {
+    BNFIB_DEFI,
+    BNFIB_FASTD,
+};
+#define METHOD BNFIB_FASTD
+
 int main()
 {
-    char buf[1000];
-    buf[999] = '\0';
-
-    int offset = 100;
+    char buf[5000];
+    buf[4999] = '\0';
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -20,9 +28,9 @@ int main()
         exit(1);
     }
 
-    lseek(fd, offset, SEEK_SET);
-    long long left = read(fd, buf, 1000);
-    printf("Fibonacci(%d) = %s left: %lld\n", offset, buf, left);
+    lseek(fd, NFIB, SEEK_SET);
+    long long ktime = read(fd, buf, METHOD);
+    printf("Fibonacci(%d) = %s ktime: %lld\n", NFIB, buf, ktime);
 
     close(fd);
     return 0;

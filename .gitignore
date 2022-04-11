@@ -38,9 +38,10 @@ cscope.*
 tags
 
 # experiment's programs
-expt00_checkvalues_92
+expt00_checkvalues92
 expt01_userkernel
 expt02_times
 expt03_perf
 fib_seq_92
 expt04_exactsol
+fbn_debug
