@@ -45,10 +45,10 @@ int fbn_free(fbn *obj);
  * Return 0 on success and -1 on failure.
  */
 int fbn_copy(fbn *des, fbn *src);
-#ifdef FBN_DEBUG
+#ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
 void fbndebug_printhex(fbn *obj);
-#endif /* FBN_DEBUG */
+#endif /* _FBN_DEBUG */
 /* Print fbn to string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj);
 

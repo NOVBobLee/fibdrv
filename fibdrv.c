@@ -43,15 +43,6 @@ static long long fib_sequence(long long k)
     return f[k];
 }
 
-static inline ssize_t fibseq_vla_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fib_sequence(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
 static long long fibseq_kmalloc(long long k)
 {
     long long result, *f = kmalloc_array(k + 2, sizeof(long long), GFP_KERNEL);
@@ -69,15 +60,6 @@ static long long fibseq_kmalloc(long long k)
     return result;
 }
 
-static inline ssize_t fibseq_kmalloc_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_kmalloc(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
 static long long fibseq_fixedla(long long k)
 {
     long long f[2] = {0, 1};
@@ -86,15 +68,6 @@ static long long fibseq_fixedla(long long k)
         f[i & 0x1] += f[(i - 1) & 0x1];
 
     return f[k & 0x1];
-}
-
-static inline ssize_t fibseq_fixedla_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fixedla(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
 }
 
 static long long fibseq_exactsolv2(long long k)
@@ -112,15 +85,6 @@ static long long fibseq_exactsolv2(long long k)
     return b;
 }
 
-static inline ssize_t fibseq_exactsolv2_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_exactsolv2(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
 static long long fibseq_exactsolv3(long long k)
 {
     if (unlikely(k < 2))
@@ -134,15 +98,6 @@ static long long fibseq_exactsolv3(long long k)
     }
 
     return b;
-}
-
-static inline ssize_t fibseq_exactsolv3_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_exactsolv3(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
 }
 
 static long long fibseq_fastdoubling_loop62(long long k)
@@ -174,128 +129,32 @@ static long long fibseq_fastdoubling_loop62(long long k)
     return a;
 }
 
-static inline ssize_t fibseq_fastdoubling_loop62_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_loop62(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
-static long long fibseq_fastdoubling_loop31(long long k)
-{
-    if (unlikely(k < 2))
-        return k;
-
-    /* find the left-most bit */
-    unsigned mask = 1U << 31;
-    while (!(k & mask))
-        mask >>= 1;
-
-    /* fast doubling */
-    long long a = 0, b = 1;
-    while (mask) {
-        /* times 2 */
-        long long tmp = a;
-        a = a * ((b << 1) - a);
-        b = tmp * tmp + b * b;
-
-        /* plus 1 */
-        if (k & mask) {
-            tmp = b;
-            b += a;
-            a = tmp;
-        }
-        mask >>= 1;
+#define DECLARE_FASTDBL_LOOP(NLOOP)                               \
+    static long long fibseq_fastdoubling_loop##NLOOP(long long k) \
+    {                                                             \
+        if (unlikely(k < 2))                                      \
+            return k;                                             \
+        unsigned mask = 1U << NLOOP;                              \
+        while (!(k & mask))                                       \
+            mask >>= 1;                                           \
+        long long a = 0, b = 1;                                   \
+        while (mask) {                                            \
+            long long tmp = a;                                    \
+            a = a * ((b << 1) - a);                               \
+            b = tmp * tmp + b * b;                                \
+            if (k & mask) {                                       \
+                tmp = b;                                          \
+                b += a;                                           \
+                a = tmp;                                          \
+            }                                                     \
+            mask >>= 1;                                           \
+        }                                                         \
+        return a;                                                 \
     }
-    return a;
-}
 
-static inline ssize_t fibseq_fastdoubling_loop31_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_loop31(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
-static long long fibseq_fastdoubling_loop16(long long k)
-{
-    if (unlikely(k < 2))
-        return k;
-
-    /* find the left-most bit */
-    unsigned mask = 1U << 16;
-    while (!(k & mask))
-        mask >>= 1;
-
-    /* fast doubling */
-    long long a = 0, b = 1;
-    while (mask) {
-        /* times 2 */
-        long long tmp = a;
-        a = a * ((b << 1) - a);
-        b = tmp * tmp + b * b;
-
-        /* plus 1 */
-        if (k & mask) {
-            tmp = b;
-            b += a;
-            a = tmp;
-        }
-        mask >>= 1;
-    }
-    return a;
-}
-
-static inline ssize_t fibseq_fastdoubling_loop16_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_loop16(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
-static long long fibseq_fastdoubling_loop6(long long k)
-{
-    if (unlikely(k < 2))
-        return k;
-
-    /* find the left-most bit */
-    unsigned mask = 1U << 6;
-    while (!(k & mask))
-        mask >>= 1;
-
-    /* fast doubling */
-    long long a = 0, b = 1;
-    while (mask) {
-        /* times 2 */
-        long long tmp = a;
-        a = a * ((b << 1) - a);
-        b = tmp * tmp + b * b;
-
-        /* plus 1 */
-        if (k & mask) {
-            tmp = b;
-            b += a;
-            a = tmp;
-        }
-        mask >>= 1;
-    }
-    return a;
-}
-
-static inline ssize_t fibseq_fastdoubling_loop6_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_loop6(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
+DECLARE_FASTDBL_LOOP(31);
+DECLARE_FASTDBL_LOOP(16);
+DECLARE_FASTDBL_LOOP(6);
 
 static long long fibseq_fastdoubling_fls(long long k)
 {
@@ -322,15 +181,6 @@ static long long fibseq_fastdoubling_fls(long long k)
         mask >>= 1;
     }
     return a;
-}
-
-static inline ssize_t fibseq_fastdoubling_fls_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_fls(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
 }
 
 static long long fibseq_fastdoubling_clz(long long k)
@@ -360,36 +210,6 @@ static long long fibseq_fastdoubling_clz(long long k)
     return a;
 }
 
-static inline ssize_t fibseq_fastdoubling_clz_timer(long long k)
-{
-    ktime_t kt;
-    kt = ktime_get();
-    fibseq_fastdoubling_clz(k);
-    kt = ktime_sub(ktime_get(), kt);
-    return (ssize_t) ktime_to_ns(kt);
-}
-
-#ifdef __TEST_KTIME
-static ssize_t (*const fibonacci_seq[])(long long) = {
-    fibseq_vla_timer,
-    fibseq_kmalloc_timer,
-    fibseq_fixedla_timer,
-    fibseq_exactsolv2_timer,
-    fibseq_exactsolv3_timer,
-    fibseq_fastdoubling_loop62_timer,
-    fibseq_fastdoubling_loop31_timer,
-    fibseq_fastdoubling_loop16_timer,
-    fibseq_fastdoubling_loop6_timer,
-    fibseq_fastdoubling_fls_timer,
-    fibseq_fastdoubling_clz_timer,
-};
-
-// TODO: add ktimer
-static void (*const bn_fibonacci_seq[])(fbn *, int) = {
-    fbn_fib_defi,
-    fbn_fib_fastdoubling,
-};
-#else
 static long long (*const fibonacci_seq[])(long long) = {
     fib_sequence,               /* 0 */
     fibseq_kmalloc,             /* 1 */
@@ -408,7 +228,6 @@ static void (*const bn_fibonacci_seq[])(fbn *, int) = {
     fbn_fib_defi,
     fbn_fib_fastdoubling,
 };
-#endif
 
 static int fib_open(struct inode *inode, struct file *file)
 {
@@ -431,7 +250,7 @@ static ssize_t fib_read(struct file *file,
                         size_t method,
                         loff_t *offset)
 {
-#ifndef FBN_DEBUG
+#ifndef _FBN_DEBUG
     fbn *fib = fbn_alloc(1);
     bn_fibonacci_seq[method](fib, *offset);
     char *str = fbn_print(fib);
@@ -439,7 +258,7 @@ static ssize_t fib_read(struct file *file,
     kfree(str);
     fbn_free(fib);
     return left;
-#else  /* defined(FBN_DEBUG) */
+#else  /* defined(_FBN_DEBUG) */
     pr_info("fibdrv_debug: test starts..\n");
     fbn *a = fbn_alloc(1);
     fbn *b = fbn_alloc(1);
@@ -487,8 +306,16 @@ static ssize_t fib_read(struct file *file,
     fbn_free(b);
     pr_info("fibdrv_debug: test ends..\n");
     return 0;
-#endif /* FBN_DEBUG */
+#endif /* _FBN_DEBUG */
 }
+
+#define FIB_KTIME(fib_method, k)         \
+    ({                                   \
+        ktime_t kt = ktime_get();        \
+        fibonacci_seq[fib_method](k);    \
+        kt = ktime_sub(ktime_get(), kt); \
+        (ssize_t) ktime_to_ns(kt);       \
+    })
 
 /* write operation is skipped */
 static ssize_t fib_write(struct file *file,
@@ -496,7 +323,11 @@ static ssize_t fib_write(struct file *file,
                          size_t method,
                          loff_t *offset)
 {
+#ifdef _TEST_KTIME
+    return FIB_KTIME(method, *offset);
+#else
     return fibonacci_seq[method](*offset);
+#endif /* _TEST_KTIME */
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)

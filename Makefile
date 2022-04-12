@@ -54,7 +54,7 @@ check: all
 
 # For debugging big number operations
 fbndebug: $(USR)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-DFBN_DEBUG
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_FBN_DEBUG
 	$(MAKE) unload
 	$(MAKE) load
 	sudo ./fbn_debug
@@ -74,7 +74,7 @@ expt00: $(USR)
 
 # Test Fibonacci executing time in user space vs. kernel space
 expt01: $(USR)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
 	./scripts/expt.sh 1
@@ -82,7 +82,7 @@ expt01: $(USR)
 
 # Test Fibonacci executing time in different methods
 expt02: $(USR)
-	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D__TEST_KTIME
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
 	./scripts/expt.sh 2

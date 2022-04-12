@@ -97,7 +97,7 @@ static void fbn_swap_content(fbn *a, fbn *b)
     b->len = len;
 }
 
-#ifdef FBN_DEBUG
+#ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
 void fbndebug_printhex(fbn *obj)
 {
@@ -105,7 +105,7 @@ void fbndebug_printhex(fbn *obj)
         pr_info("fibdrv_debug: %d %#010x\n", i, obj->num[i]);
     pr_info("fibdrv_debug: - ----------\n");
 }
-#endif /* FBN_DEBUG */
+#endif /* _FBN_DEBUG */
 
 /* Print fbn into a string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj)
@@ -171,7 +171,7 @@ void fbn_lshift32(fbn *b, fbn *a, int k)
  */
 void fbn_lshift(fbn *obj, int k)
 {
-    if (unlikely(!k))
+    if (unlikely(!k || fbn_iszero(obj)))
         return;
     int shift_bit = MOD32(k);
     int shift_elmt = k >> 5;
