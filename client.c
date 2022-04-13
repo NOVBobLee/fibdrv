@@ -9,9 +9,10 @@
 
 int main()
 {
-    char buf[1000];
-    buf[999] = '\0';
-    int offset = 100;
+    char buf[1000] = {
+        [999] = '\0',
+    };
+    int offset = 100; /* Be careful of the size of buf */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {

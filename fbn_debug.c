@@ -19,8 +19,9 @@ enum {
 
 int main()
 {
-    char buf[5000];
-    buf[4999] = '\0';
+    char buf[5000] = {
+        [4999] = '\0',
+    };
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {

@@ -18,6 +18,7 @@ declare -a expts
 expts+=(00_checkvalues92)
 expts+=(01_userkernel)
 expts+=(02_times)
+expts+=(05bn_userkernel)
 
 which_expt=$1
 

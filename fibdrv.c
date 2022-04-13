@@ -244,6 +244,29 @@ static int fib_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+#if 0
+/* For escaping the warning in macro BNFIB_KTIME.
+ * warning: ignoring return value of ‘copy_to_user’, declared with attribute
+ * warn_unused_result [-Wunused-result] */
+__attribute__((always_inline)) static inline void escape(void *p)
+{
+    __asm__ volatile ("" : : "g"(p) : "memory");
+}
+#endif
+
+#define BNFIB_KTIME(bnfib_method, k, buf)        \
+    ({                                           \
+        ktime_t kt = ktime_get();                \
+        fbn *fib = fbn_alloc(1);                 \
+        bn_fibonacci_seq[bnfib_method](fib, k);  \
+        kt = ktime_sub(ktime_get(), kt);         \
+        char *str = fbn_print(fib);              \
+        fbn_free(fib);                           \
+        copy_to_user(buf, str, strlen(str) + 1); \
+        kfree(str);                              \
+        ktime_to_ns(kt);                         \
+    })
+
 /* calculate the fibonacci number at given offset */
 static ssize_t fib_read(struct file *file,
                         char *buf,
@@ -251,13 +274,17 @@ static ssize_t fib_read(struct file *file,
                         loff_t *offset)
 {
 #ifndef _FBN_DEBUG
+#ifdef _TEST_KTIME
+    return (ssize_t) BNFIB_KTIME(method, *offset, buf);
+#else
     fbn *fib = fbn_alloc(1);
     bn_fibonacci_seq[method](fib, *offset);
     char *str = fbn_print(fib);
-    size_t left = copy_to_user(buf, str, strlen(str) + 1);
+    ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
     kfree(str);
     fbn_free(fib);
     return left;
+#endif /* _TEST_KTIME */
 #else  /* defined(_FBN_DEBUG) */
     pr_info("fibdrv_debug: test starts..\n");
     fbn *a = fbn_alloc(1);
@@ -314,7 +341,7 @@ static ssize_t fib_read(struct file *file,
         ktime_t kt = ktime_get();        \
         fibonacci_seq[fib_method](k);    \
         kt = ktime_sub(ktime_get(), kt); \
-        (ssize_t) ktime_to_ns(kt);       \
+        ktime_to_ns(kt);                 \
     })
 
 /* write operation is skipped */
@@ -324,7 +351,7 @@ static ssize_t fib_write(struct file *file,
                          loff_t *offset)
 {
 #ifdef _TEST_KTIME
-    return FIB_KTIME(method, *offset);
+    return (ssize_t) FIB_KTIME(method, *offset);
 #else
     return fibonacci_seq[method](*offset);
 #endif /* _TEST_KTIME */

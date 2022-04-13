@@ -18,6 +18,7 @@ USR := client\
 	   expt02_times\
 	   expt03_perf\
 	   expt04_exactsol\
+	   expt05bn_userkernel\
 	   fbn_debug
 
 all: $(GIT_HOOKS) $(USR)
@@ -107,6 +108,13 @@ expt04: expt04_exactsol.c
 	mv -f data/00_checkvalues92_pic.png data/04_exactsol_pic.png
 	-mv data/00_checkvalues92_data.out.tmp data/00_checkvalues92_data.out 2> /dev/null
 	-mv data/00_checkvalues92_pic.png.tmp data/00_checkvalues92_pic.png 2> /dev/null
+
+expt05: $(USR)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_TEST_KTIME
+	$(MAKE) unload
+	$(MAKE) load
+	./scripts/expt.sh 3
+	$(MAKE) unload
 
 cscope_tags:
 	@rm -f cscope.* tags
