@@ -44,13 +44,15 @@ int fbn_free(fbn *obj);
  * @src: the copy source of fbn
  * Return 0 on success and -1 on failure.
  */
-int fbn_copy(fbn *des, fbn *src);
+int fbn_copy(fbn *des, const fbn *src);
 #ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
 void fbndebug_printhex(fbn *obj);
 #endif /* _FBN_DEBUG */
 /* Print fbn to string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj);
+/* Print fbn into string (version 1), need kfree to free the string */
+char *fbn_printv1(const fbn *obj);
 
 /*
  * Left-shift under 32 bits: b = a << k. a <<= k is also acceptable.

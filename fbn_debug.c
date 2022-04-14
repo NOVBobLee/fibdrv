@@ -33,11 +33,6 @@ int main()
     long long ktime = read(fd, buf, METHOD);
     printf("Fibonacci(%d) = %s ktime: %lld\n", NFIB, buf, ktime);
 
-    /* test write ktime macro */
-    lseek(fd, 5, SEEK_SET);
-    ktime = write(fd, buf, 8); /* fls */
-    printf("TEST ktime macro: kt = %lld\n", ktime);
-
     close(fd);
     return 0;
 }

@@ -19,6 +19,7 @@ expts+=(00_checkvalues92)
 expts+=(01_userkernel)
 expts+=(02_times)
 expts+=(05bn_userkernel)
+expts+=(06bn_ktimes)
 
 which_expt=$1
 
@@ -105,5 +106,7 @@ expt() {
 
 expt
 #check_state
-gnuplot ./scripts/plot${expts[$which_expt]}.gp
+if [ -f "./scripts/plot${expts[$which_expt]}.gp" ]; then
+	gnuplot ./scripts/plot${expts[$which_expt]}.gp
+fi
 sudo sh -c "chown ${user}:${group} ./data/${expts[$which_expt]}_data.out"

@@ -19,6 +19,7 @@ USR := client\
 	   expt03_perf\
 	   expt04_exactsol\
 	   expt05bn_userkernel\
+	   expt06bn_ktime\
 	   fbn_debug
 
 all: $(GIT_HOOKS) $(USR)
@@ -114,6 +115,13 @@ expt05: $(USR)
 	$(MAKE) unload
 	$(MAKE) load
 	./scripts/expt.sh 3
+	$(MAKE) unload
+
+expt06: $(USR)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_TEST_KTIME
+	$(MAKE) unload
+	$(MAKE) load
+	./scripts/expt.sh 4
 	$(MAKE) unload
 
 cscope_tags:

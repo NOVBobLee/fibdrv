@@ -254,13 +254,19 @@ __attribute__((always_inline)) static inline void escape(void *p)
 }
 #endif
 
+static char *(*const bn_print[])(const fbn *) = {
+    fbn_print,
+    fbn_printv1,
+};
+#define BN_PRINT 1
+
 #define BNFIB_KTIME(bnfib_method, k, buf)        \
     ({                                           \
-        ktime_t kt = ktime_get();                \
         fbn *fib = fbn_alloc(1);                 \
         bn_fibonacci_seq[bnfib_method](fib, k);  \
+        ktime_t kt = ktime_get();                \
+        char *str = bn_print[BN_PRINT](fib);     \
         kt = ktime_sub(ktime_get(), kt);         \
-        char *str = fbn_print(fib);              \
         fbn_free(fib);                           \
         copy_to_user(buf, str, strlen(str) + 1); \
         kfree(str);                              \
@@ -279,59 +285,18 @@ static ssize_t fib_read(struct file *file,
 #else
     fbn *fib = fbn_alloc(1);
     bn_fibonacci_seq[method](fib, *offset);
-    char *str = fbn_print(fib);
+    char *str = bn_print[BN_PRINT](fib);
     ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
     kfree(str);
     fbn_free(fib);
     return left;
 #endif /* _TEST_KTIME */
 #else  /* defined(_FBN_DEBUG) */
-    pr_info("fibdrv_debug: test starts..\n");
     fbn *a = fbn_alloc(1);
-    fbn *b = fbn_alloc(1);
-
-    fbn_assign(b, 0, 0x0000ffff);
-
-    fbn_lshift32(a, b, 16); /* a = b << 16 */
+    fbn_assign(a, 0, 0x1);
+    fbn_lshift(a, 64);
     fbndebug_printhex(a);
-
-    fbn_lshift32(b, b, 16); /* b <<= 16 */
-    fbndebug_printhex(b);
-
-    fbn_assign(a, 0, 0xffffffff);
-    fbn_assign(b, 0, 0x0000ffff);
-
-    fbn_add(a, a, b); /* a += b */
-    fbndebug_printhex(a);
-
-    fbn_sub(a, a, b); /* a -= b */
-    fbndebug_printhex(a);
-
-    fbn_lshift32(a, a, 16); /* a <<= 16 */
-    fbndebug_printhex(a);
-
-    fbn_lshift(a, 48); /* a <<= 48 */
-    fbndebug_printhex(a);
-
-    fbn_assign(a, 0, 0xffffffff);
-    fbn_assign(a, 1, 0xffffffff);
-    fbn_assign(a, 2, 0xffffffff); /* a = 0xffffffff'ffffffff'ffffffff */
-    fbn_assign(b, 0, 0x1);
-    fbn_lshift(b, 96);
-    fbn_assign(b, 0, 0x1); /* b = 0x1'00000000'00000000'00000001 */
-    fbn_mul(a, a, b);      /* a *= b */
-    fbndebug_printhex(a);
-
-    fbn_copy(b, a);
-    fbn_sub(a, a, b);
-    fbndebug_printhex(a); /* test truncating leading zero elements */
-
-    fbn_mul(a, a, b); /* a = 0 * b */
-    fbndebug_printhex(a);
-
     fbn_free(a);
-    fbn_free(b);
-    pr_info("fibdrv_debug: test ends..\n");
     return 0;
 #endif /* _FBN_DEBUG */
 }

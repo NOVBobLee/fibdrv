@@ -77,7 +77,7 @@ static int fbn_resize(fbn *obj, int len)
  * @src: the copy source of fbn
  * Return 0 on success and -1 on failure.
  */
-int fbn_copy(fbn *des, fbn *src)
+int fbn_copy(fbn *des, const fbn *src)
 {
     int res = fbn_resize(des, src->len);
     if (unlikely(res < 0))
@@ -131,6 +131,131 @@ char *fbn_print(const fbn *obj)
         ++p;
     memmove(str, p, strlen(p) + 1);
     return str;
+}
+
+/* (high * 2^32 + low) = q * d + r, be aware of overflow of q */
+#define divl(high, low, d, q, r) \
+    __asm__("divl %4" : "=a"(q), "=d"(r) : "0"(low), "1"(high), "rm"(d))
+
+/*
+ * Divide obj by 10^9.
+ * @obj: fbn object which is dividend in the beginning and quotient in the end
+ * @nonzero_len: obj->len - #(leading zero elements)
+ * Return the remainder.
+ */
+static u32 fbn_divten9(fbn *obj, int nonzero_len)
+{
+    u32 high_r = 0, divisor = 1000000000U;
+    /* start from the leading non-zero element */
+    u32 *nump = obj->num + nonzero_len - 1;
+
+    for (int i = nonzero_len - 1; i >= 0; --i) {
+        u32 cur = *nump, q, r;
+        divl(high_r, cur, divisor, q, r);
+        *nump = q; /* store the quotient */
+
+        high_r = r; /* update the remainder */
+        --nump;     /* move to the lower num */
+    }
+    return high_r;
+}
+
+static unsigned put_dec_helper4(char *end, unsigned x)
+{
+    /* q = x / 10^4
+     *   = (x * (2^43 / 10^4)) * 2^(-43)
+     * require: x < 1,128,869,999 */
+    unsigned q = (x * 0x346DC5D7ULL) >> 43;
+    unsigned r = x - q * 10000;
+
+    for (int i = 0; i < 3; ++i) {
+        /* q2 = r / 10
+         *    = (r * (2^15 / 10)) * 2^(-15)
+         * require: r < 16,389 */
+        unsigned q2 = (r * 0xccd) >> 15;
+        *--end = '0' + (r - q2 * 10);
+        r = q2;
+    }
+    *--end = '0' + r;
+
+    return q;
+}
+
+/* modified from put_dec() in drivers/firmware/efi/libstub/vsprintf.c */
+static char *put_dec(char *end, unsigned n)
+{
+    unsigned high, q;
+    char *p = end;
+    high = n >> 16; /* low = (n & 0xffff) */
+
+    /* n = high * 2^16 + low
+     *   = 65536 * high + low
+     *   = (6 * 10^4 + 5536) * high + low
+     *   = (6 * high) * 10^4 + (5536 * high + low) */
+
+    /* 10^0 part */
+    q = 5536 * high + (n & 0xffff);
+    q = put_dec_helper4(p, q);
+    p -= 4; /* 4 digits */
+
+    /* 10^4 part */
+    q += 6 * high;
+    q = put_dec_helper4(p, q);
+    p -= 4; /* 4 digits */
+
+    /* 10^8 part, q < 10 */
+    *--p = '0' + q; /* the 9-th digit */
+
+    return p;
+}
+
+/* Print fbn into string (version 1), need kfree to free the string */
+char *fbn_printv1(const fbn *obj)
+{
+    if (unlikely(fbn_iszero(obj))) {
+        char *str = kmalloc(2, GFP_KERNEL);
+        str[0] = '0';
+        str[1] = '\0';
+        return str;
+    }
+
+    fbn *obj2 = fbn_alloc(obj->len); /* alloc fbn */
+    if (unlikely(!obj2))
+        goto fail_to_alloc;
+    int res = fbn_copy(obj2, obj); /* copy fbn */
+    if (unlikely(res))
+        goto fail_to_copy_or_creatstr;
+    /* almost 10 digits per 32 bits */
+    size_t str_len = (obj2->len + 1) * 10;
+    char *str = kmalloc(str_len, GFP_KERNEL); /* alloc string */
+    if (unlikely(!str))
+        goto fail_to_copy_or_creatstr;
+    str[str_len - 1] = '\0';
+    char *str_end = str + str_len - 1, *head = str_end - 1;
+
+    /* short division, print decimal string */
+    int nonzero_len = obj2->len;
+    do {
+        /* divided by 10^9, obj2 will become the quotient */
+        u32 r_ten9 = fbn_divten9(obj2, nonzero_len);
+        /* print r_ten9 in str (9 digits) */
+        head = put_dec(head, r_ten9);
+
+        /* decrease when a new leading zero element appears */
+        nonzero_len -= !obj2->num[nonzero_len - 1];
+    } while (nonzero_len);
+
+    /* strip off the leading 0's */
+    while (head < str_end && *head == '0')
+        ++head;
+    memmove(str, head, strlen(head) + 1);
+
+    fbn_free(obj2);
+    return str;
+fail_to_copy_or_creatstr:
+    fbn_free(obj2);
+fail_to_alloc:
+    return NULL;
 }
 
 /*
