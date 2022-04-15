@@ -210,25 +210,6 @@ static long long fibseq_fastdoubling_clz(long long k)
     return a;
 }
 
-static long long (*const fibonacci_seq[])(long long) = {
-    fib_sequence,               /* 0 */
-    fibseq_kmalloc,             /* 1 */
-    fibseq_fixedla,             /* 2 */
-    fibseq_exactsolv2,          /* 3 */
-    fibseq_exactsolv3,          /* 4 */
-    fibseq_fastdoubling_loop62, /* 5 */
-    fibseq_fastdoubling_loop31, /* 5 */
-    fibseq_fastdoubling_loop16, /* 6 */
-    fibseq_fastdoubling_loop6,  /* 7 */
-    fibseq_fastdoubling_fls,    /* 8 */
-    fibseq_fastdoubling_clz,    /* 9 */
-};
-
-static void (*const bn_fibonacci_seq[])(fbn *, int) = {
-    fbn_fib_defi,
-    fbn_fib_fastdoubling,
-};
-
 static int fib_open(struct inode *inode, struct file *file)
 {
     if (!mutex_trylock(&fib_mutex)) {
@@ -255,18 +236,24 @@ __attribute__((always_inline)) static inline void escape(void *p)
 #endif
 
 static char *(*const bn_print[])(const fbn *) = {
-    fbn_print,
-    fbn_printv1,
+    fbn_print,   /* 0 */
+    fbn_printv1, /* 1 */
 };
 #define BN_PRINT 1
+
+static void (*const bn_fibonacci_seq[])(fbn *, int) = {
+    fbn_fib_defi,
+    fbn_fib_fastdoubling,
+    fbn_fib_fastdoublingv1,
+};
 
 #define BNFIB_KTIME(bnfib_method, k, buf)        \
     ({                                           \
         fbn *fib = fbn_alloc(1);                 \
-        bn_fibonacci_seq[bnfib_method](fib, k);  \
         ktime_t kt = ktime_get();                \
-        char *str = bn_print[BN_PRINT](fib);     \
+        bn_fibonacci_seq[bnfib_method](fib, k);  \
         kt = ktime_sub(ktime_get(), kt);         \
+        char *str = bn_print[BN_PRINT](fib);     \
         fbn_free(fib);                           \
         copy_to_user(buf, str, strlen(str) + 1); \
         kfree(str);                              \
@@ -293,13 +280,30 @@ static ssize_t fib_read(struct file *file,
 #endif /* _TEST_KTIME */
 #else  /* defined(_FBN_DEBUG) */
     fbn *a = fbn_alloc(1);
-    fbn_assign(a, 0, 0x1);
-    fbn_lshift(a, 64);
+    fbn_lshift(a, 0);
+    bn_fibonacci_seq[method](a, *offset);
     fbndebug_printhex(a);
+    char *str = bn_print[BN_PRINT](a);
+    ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
+    kfree(str);
     fbn_free(a);
-    return 0;
+    return left;
 #endif /* _FBN_DEBUG */
 }
+
+static long long (*const fibonacci_seq[])(long long) = {
+    fib_sequence,               /* 0 */
+    fibseq_kmalloc,             /* 1 */
+    fibseq_fixedla,             /* 2 */
+    fibseq_exactsolv2,          /* 3 */
+    fibseq_exactsolv3,          /* 4 */
+    fibseq_fastdoubling_loop62, /* 5 */
+    fibseq_fastdoubling_loop31, /* 5 */
+    fibseq_fastdoubling_loop16, /* 6 */
+    fibseq_fastdoubling_loop6,  /* 7 */
+    fibseq_fastdoubling_fls,    /* 8 */
+    fibseq_fastdoubling_clz,    /* 9 */
+};
 
 #define FIB_KTIME(fib_method, k)         \
     ({                                   \

@@ -7,6 +7,13 @@
 
 #define FIB_DEV "/dev/fibonacci"
 
+enum {
+    BNFIB_DEFI,
+    BNFIB_FASTDBL,
+    BNFIB_FASTDBLv1,
+};
+#define METHOD BNFIB_FASTDBLv1
+
 int main()
 {
     char buf[1000] = {
@@ -22,7 +29,7 @@ int main()
 
     for (int i = 0; i <= offset; i++) {
         lseek(fd, i, SEEK_SET);
-        read(fd, buf, 1000);
+        read(fd, buf, METHOD);
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%s.\n",
@@ -31,7 +38,7 @@ int main()
 
     for (int i = offset; i >= 0; i--) {
         lseek(fd, i, SEEK_SET);
-        read(fd, buf, 1000);
+        read(fd, buf, METHOD);
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%s.\n",

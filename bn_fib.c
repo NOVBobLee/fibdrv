@@ -116,7 +116,7 @@ char *fbn_print(const fbn *obj)
     str[slen - 1] = '\0';
 
     for (int i = obj->len - 1; i >= 0; --i) {
-        for (unsigned mask = 1U << 31; mask; mask >>= 1) {
+        for (u32 mask = 1U << 31; mask; mask >>= 1) {
             int carry = !!(mask & obj->num[i]);
             for (int j = slen - 2; j >= 0; --j) {
                 str[j] += str[j] - '0' + carry;
@@ -160,19 +160,19 @@ static u32 fbn_divten9(fbn *obj, int nonzero_len)
     return high_r;
 }
 
-static unsigned put_dec_helper4(char *end, unsigned x)
+static u32 put_dec_helper4(char *end, u32 x)
 {
     /* q = x / 10^4
      *   = (x * (2^43 / 10^4)) * 2^(-43)
      * require: x < 1,128,869,999 */
-    unsigned q = (x * 0x346DC5D7ULL) >> 43;
-    unsigned r = x - q * 10000;
+    u32 q = (x * 0x346DC5D7ULL) >> 43;
+    u32 r = x - q * 10000;
 
     for (int i = 0; i < 3; ++i) {
         /* q2 = r / 10
          *    = (r * (2^15 / 10)) * 2^(-15)
          * require: r < 16,389 */
-        unsigned q2 = (r * 0xccd) >> 15;
+        u32 q2 = (r * 0xccd) >> 15;
         *--end = '0' + (r - q2 * 10);
         r = q2;
     }
@@ -182,9 +182,9 @@ static unsigned put_dec_helper4(char *end, unsigned x)
 }
 
 /* modified from put_dec() in drivers/firmware/efi/libstub/vsprintf.c */
-static char *put_dec(char *end, unsigned n)
+static char *put_dec(char *end, u32 n)
 {
-    unsigned high, q;
+    u32 high, q;
     char *p = end;
     high = n >> 16; /* low = (n & 0xffff) */
 
@@ -476,8 +476,8 @@ void fbn_fib_fastdoubling(fbn *des, int n)
     while (mask) {
         /* times 2 */
         fbn_lshift32(tmp, b, 1);  /* tmp = ((b << 1) */
-        fbn_sub(tmp, tmp, a);     /*          - a) */
-        fbn_mul(tmp, tmp, a);     /*          * a */
+        fbn_sub(tmp, tmp, a);     /*        - a) */
+        fbn_mul(tmp, tmp, a);     /*        * a */
         fbn_mul(a, a, a);         /* a^2 */
         fbn_mul(b, b, b);         /* b^2 */
         fbn_add(b, b, a);         /* b = a^2 + b^2 */
@@ -492,5 +492,49 @@ void fbn_fib_fastdoubling(fbn *des, int n)
     }
 
     fbn_free(b);
+    fbn_free(tmp);
+}
+
+/*
+ * Calculate the nth Fibonacci number with fast doubling method.
+ * Version 1: without subtraction
+ * @des: fbn object to store @n-th Fibonacci number
+ * @n: @n-th Fibonacci number
+ */
+void fbn_fib_fastdoublingv1(fbn *des, int n)
+{
+    fbn_resize(des, 1);
+    /* trivial case */
+    if (unlikely(n < 2)) {
+        des->num[0] = n;
+        return;
+    }
+
+    /* fast doubling method */
+    u32 mask = 1U << (fls((u32) n) - 1 - 1);
+    fbn *a = fbn_alloc(1);
+    fbn *b = des; /* b will be the result */
+    fbn *tmp = fbn_alloc(1);
+    a->num[0] = 0; /* a = 0 */
+    b->num[0] = 1; /* b = 1 */
+    while (mask) {
+        /* times 2 */
+        fbn_lshift32(tmp, a, 1);  /* tmp = ((a << 1) */
+        fbn_add(tmp, tmp, b);     /*        + b) */
+        fbn_mul(tmp, tmp, b);     /*        * b */
+        fbn_mul(a, a, a);         /* a^2 */
+        fbn_mul(b, b, b);         /* b^2 */
+        fbn_add(a, a, b);         /* b = a^2 + b^2 */
+        fbn_swap_content(b, tmp); /* a <-> tmp */
+
+        /* plus 1 */
+        if (mask & n) {
+            fbn_swap_content(a, b); /* a <-> b */
+            fbn_add(b, b, a);       /* b += a */
+        }
+        mask >>= 1;
+    }
+
+    fbn_free(a);
     fbn_free(tmp);
 }

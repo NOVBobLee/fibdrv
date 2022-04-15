@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
-#define OUT_FILE "data/06bn_ktimes_data.out"
+#define OUT_FILE "data/06bn_ktime_data.out"
 
 #define NSAMPLE 1000
 
@@ -20,6 +20,7 @@
 enum {
     BNFIB_DEFI,
     BNFIB_FASTDBL,
+    BNFIB_FASTDBLv1,
 };
 #define METHOD BNFIB_FASTDBL
 

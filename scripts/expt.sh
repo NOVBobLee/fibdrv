@@ -19,7 +19,7 @@ expts+=(00_checkvalues92)
 expts+=(01_userkernel)
 expts+=(02_times)
 expts+=(05bn_userkernel)
-expts+=(06bn_ktimes)
+expts+=(06bn_ktime)
 
 which_expt=$1
 

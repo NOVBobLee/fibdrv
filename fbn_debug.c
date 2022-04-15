@@ -9,11 +9,12 @@
 
 /* n-th Fibonacci number
  * Be careful of the buf size, 10000-th Fibonacci needs 2901 digits */
-#define NFIB 10000
+#define NFIB 100
 
 enum {
     BNFIB_DEFI,
     BNFIB_FASTD,
+    BNFIB_FASTDv1,
 };
 #define METHOD BNFIB_FASTD
 

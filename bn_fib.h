@@ -86,5 +86,12 @@ void fbn_fib_defi(fbn *des, int n);
  * @n: @n-th Fibonacci number
  */
 void fbn_fib_fastdoubling(fbn *des, int n);
+/*
+ * Calculate the nth Fibonacci number with fast doubling method.
+ * Version 1: without subtraction
+ * @des: fbn object to store @n-th Fibonacci number
+ * @n: @n-th Fibonacci number
+ */
+void fbn_fib_fastdoublingv1(fbn *des, int n);
 
 #endif /* __FBN_H_ */
