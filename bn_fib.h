@@ -47,7 +47,7 @@ int fbn_free(fbn *obj);
 int fbn_copy(fbn *des, const fbn *src);
 #ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
-void fbndebug_printhex(fbn *obj);
+void fbndebug_printhex(const fbn *obj);
 #endif /* _FBN_DEBUG */
 /* Print fbn to string (decimal), need kfree to free this string */
 char *fbn_print(const fbn *obj);
@@ -55,12 +55,12 @@ char *fbn_print(const fbn *obj);
 char *fbn_printv1(const fbn *obj);
 
 /*
- * Left-shift under 32 bits: b = a << k. a <<= k is also acceptable.
+ * Left-shift under 31 bits: b = a << k. a <<= k is also acceptable.
  * @b: fbn object to store the result
  * @a: fbn object to be shifted
- * @k: shift @k bits, k <= 32, take modulus 32
+ * @k: shift @k bits, k %= 32
  */
-void fbn_lshift32(fbn *b, fbn *a, int k);
+void fbn_lshift31(fbn *b, fbn *a, int k);
 /*
  * Left-shift (general): obj->num <<= k
  * @obj: fbn object, num cannot be 0

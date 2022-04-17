@@ -9,8 +9,12 @@
     })
 /* Modulo 32 */
 #define MOD32(x) ((x) & ((1U << 5) - 1))
-/* Round-Up 32 bits */
+/* Divide 32 */
+#define DIV32(x) ((x) >> 5)
+/* Round up 32 bits */
 #define ROUNDUP32(x) (((x) + (1U << 5) - 1) & ~((1U << 5) - 1))
+/* Round up 32 bits and then divide 32 */
+#define DIV_ROUNDUP32(x) DIV32((x) + (1U << 5) - 1)
 /* Check fbn number is zero or not */
 #define fbn_iszero(x) (((x)->len == 1) && (!(x)->num[0]))
 /* fbn last element */
@@ -72,6 +76,22 @@ static int fbn_resize(fbn *obj, int len)
 }
 
 /*
+ * Truncate the leading zero element of fbn->num.
+ * @obj: fbn object
+ */
+static void fbn_trunclz(fbn *obj)
+{
+    if (likely(fbn_lastelmt(obj)))
+        return;
+
+    int i = obj->len - 1;
+    for (; i >= 0 && !obj->num[i]; --i)
+        ;
+    fbn_resize(obj, i + 1 + (i == -1)); /* avoid becoming length 0, happens
+                                           when num is zero */
+}
+
+/*
  * Copy fbn to another fbn.
  * @des: the copy destination of fbn
  * @src: the copy source of fbn
@@ -99,7 +119,7 @@ static void fbn_swap_content(fbn *a, fbn *b)
 
 #ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
-void fbndebug_printhex(fbn *obj)
+void fbndebug_printhex(const fbn *obj)
 {
     for (int i = obj->len - 1; i >= 0; --i)
         pr_info("fibdrv_debug: %d %#010x\n", i, obj->num[i]);
@@ -259,22 +279,22 @@ fail_to_alloc:
 }
 
 /*
- * Left-shift under 32 bits: b = a << k. a <<= k is also acceptable.
+ * Left-shift under 31 bits: b = a << k. a <<= k is also acceptable.
  * @b: fbn object to store the result
  * @a: fbn object to be shifted
- * @k: shift @k bits, k <= 32, take modulus 32
+ * @k: shift @k bits, k %= 32
  */
-void fbn_lshift32(fbn *b, fbn *a, int k)
+void fbn_lshift31(fbn *b, fbn *a, int k)
 {
     /* shift 0 bit or a is zero fbn */
     if (unlikely(!k || fbn_iszero(a))) {
         fbn_copy(b, a);
         return;
     }
-    /* take modulus (1 <= k <= 32) and resize b */
-    u32 kmod32 = MOD32(k);
-    k = kmod32 + (!kmod32 << 5);
-    int new_len = a->len - 1 + (ROUNDUP32(fls(fbn_lastelmt(a)) + k) >> 5);
+    /* take modulus 32 and resize b */
+    /* Be careful, obj->num[obj->len - 1] cannot be zero. If met, it means
+     * there's zero elements in the high position of num didn't truncated */
+    int new_len = a->len - 1 + DIV_ROUNDUP32(fls(fbn_lastelmt(a)) + MOD32(k));
     fbn_resize(b, new_len);
 
     /* shift and combine carry bits */
@@ -299,10 +319,10 @@ void fbn_lshift(fbn *obj, int k)
     if (unlikely(!k || fbn_iszero(obj)))
         return;
     int shift_bit = MOD32(k);
-    int shift_elmt = k >> 5;
+    int shift_elmt = DIV32(k);
     /* Be careful, obj->num[obj->len - 1] cannot be zero. If met, it means
      * there's zero elements in the high position of num didn't truncated */
-    int new_elmt = (k + fls(fbn_lastelmt(obj)) - 1) >> 5;
+    int new_elmt = DIV32(k + fls(fbn_lastelmt(obj)) - 1);
     fbn_resize(obj, obj->len + new_elmt);
 
     /*               0     1       (len - 1)
@@ -381,10 +401,7 @@ void fbn_sub(fbn *c, fbn *a, fbn *b)
         c->num[i] = a->num[i] - (u32) subtrahend;
     }
     /* truncate the leading zero elements */
-    for (i = c->len - 1; i >= 0 && !c->num[i]; --i)
-        ;
-    fbn_resize(c, i + 1 + (i == -1)); /* avoid i == -1, happens when num
-                                         is 0, although fbn won't happen */
+    fbn_trunclz(c);
 }
 
 /* c = a * b (long multiplication). a *= b is also acceptable */
@@ -399,7 +416,7 @@ void fbn_mul(fbn *c, fbn *a, fbn *b)
     /* Be careful, num[obj->len - 1] cannot be zero. If met, it means
      * there's zero elements in the high position of num didn't truncated */
     int new_len = a->len + b->len - 2 +
-                  (ROUNDUP32(fls(fbn_lastelmt(a)) + fls(fbn_lastelmt(b))) >> 5);
+                  DIV_ROUNDUP32(fls(fbn_lastelmt(a)) + fls(fbn_lastelmt(b)));
     fbn *pseudo_c = fbn_alloc(new_len); /* need an all zero array */
 
     /* long multiplication */
@@ -475,7 +492,7 @@ void fbn_fib_fastdoubling(fbn *des, int n)
     b->num[0] = 1; /* b = 1 */
     while (mask) {
         /* times 2 */
-        fbn_lshift32(tmp, b, 1);  /* tmp = ((b << 1) */
+        fbn_lshift31(tmp, b, 1);  /* tmp = ((b << 1) */
         fbn_sub(tmp, tmp, a);     /*        - a) */
         fbn_mul(tmp, tmp, a);     /*        * a */
         fbn_mul(a, a, a);         /* a^2 */
@@ -519,7 +536,7 @@ void fbn_fib_fastdoublingv1(fbn *des, int n)
     b->num[0] = 1; /* b = 1 */
     while (mask) {
         /* times 2 */
-        fbn_lshift32(tmp, a, 1);  /* tmp = ((a << 1) */
+        fbn_lshift31(tmp, a, 1);  /* tmp = ((a << 1) */
         fbn_add(tmp, tmp, b);     /*        + b) */
         fbn_mul(tmp, tmp, b);     /*        * b */
         fbn_mul(a, a, a);         /* a^2 */

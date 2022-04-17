@@ -247,17 +247,14 @@ static void (*const bn_fibonacci_seq[])(fbn *, int) = {
     fbn_fib_fastdoublingv1,
 };
 
-#define BNFIB_KTIME(bnfib_method, k, buf)        \
-    ({                                           \
-        fbn *fib = fbn_alloc(1);                 \
-        ktime_t kt = ktime_get();                \
-        bn_fibonacci_seq[bnfib_method](fib, k);  \
-        kt = ktime_sub(ktime_get(), kt);         \
-        char *str = bn_print[BN_PRINT](fib);     \
-        fbn_free(fib);                           \
-        copy_to_user(buf, str, strlen(str) + 1); \
-        kfree(str);                              \
-        ktime_to_ns(kt);                         \
+#define BNFIB_KTIME(bnfib_method, k, buf)       \
+    ({                                          \
+        fbn *fib = fbn_alloc(1);                \
+        ktime_t kt = ktime_get();               \
+        bn_fibonacci_seq[bnfib_method](fib, k); \
+        kt = ktime_sub(ktime_get(), kt);        \
+        fbn_free(fib);                          \
+        ktime_to_ns(kt);                        \
     })
 
 /* calculate the fibonacci number at given offset */

@@ -22,7 +22,7 @@ enum {
     BNFIB_FASTDBL,
     BNFIB_FASTDBLv1,
 };
-#define METHOD BNFIB_FASTDBL
+#define METHOD BNFIB_FASTDBLv1
 
 
 int main(void)
