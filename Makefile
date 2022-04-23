@@ -61,7 +61,7 @@ fbndebug: $(USR)
 	$(MAKE) load
 	sudo ./fbn_debug
 	$(MAKE) unload
-	dmesg | grep fibdrv_debug
+	dmesg | grep fibdrv_debug | tail -n 60
 
 # ./scripts/expt.sh <arg1>
 # @arg1: which experiment (0-based)

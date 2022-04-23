@@ -276,15 +276,21 @@ static ssize_t fib_read(struct file *file,
     return left;
 #endif /* _TEST_KTIME */
 #else  /* defined(_FBN_DEBUG) */
+    pr_info("fibdrv_debug: <test bn_fib>");
     fbn *a = fbn_alloc(1);
-    fbn_lshift(a, 0);
-    bn_fibonacci_seq[method](a, *offset);
+    char *str = NULL;
+
+    for (int i = 0; i < 5; ++i) {
+        fbn_fib_fastdoublingv1(a, i);
+        str = fbn_printv1(a);
+        pr_info("fibdrv_debug: str %s\n", str);
+        kfree(str);
+    }
+    fbn_lshift(a, 32);
     fbndebug_printhex(a);
-    char *str = bn_print[BN_PRINT](a);
-    ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
-    kfree(str);
+
     fbn_free(a);
-    return left;
+    return 0;
 #endif /* _FBN_DEBUG */
 }
 

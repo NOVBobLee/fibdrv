@@ -14,11 +14,14 @@
  *                           ^          ^
  *                         num[0]     num[1]
  *
- * [len] is the length of the array
+ * [len] is the length of array with valid value elements
+ *       i.e. allocated array length - #(leading zero elements)
+ * [cap] is the allocated array length
  */
 typedef struct {
     u32 *num;
     int len;
+    int cap;
 } fbn;
 
 /*
@@ -26,17 +29,16 @@ typedef struct {
  * @len: the length of fbn's num
  * Return fbn with length @len and num is all zeros.
  */
-fbn *fbn_alloc(int len);
+fbn *fbn_alloc(int cap);
 /* Free fbn, return 0 on success and -1 on failure */
 int fbn_free(fbn *obj);
 
 /*
- * Assign a value to fbn's n-th num element.
+ * Assign a 32-bits value to fbn.
  * @obj: fbn object
- * @n: @n-th element of @obj->num
- * @value: assigning value, only accept 32-bits unsigned integer
+ * @value: 32-bits value
  */
-#define fbn_assign(obj, n, value) ((obj)->num[(n)] = (value))
+void fbn_set_u32(fbn *obj, u32 value);
 
 /*
  * Copy fbn to another fbn.

@@ -11,34 +11,50 @@
 #define MOD32(x) ((x) & ((1U << 5) - 1))
 /* Divide 32 */
 #define DIV32(x) ((x) >> 5)
-/* Round up 32 bits */
+/* Round up 4 */
+#define ROUNDUP4(x) (((x) + (1U << 2) - 1) & ~((1U << 2) - 1))
+/* Round up 32 */
 #define ROUNDUP32(x) (((x) + (1U << 5) - 1) & ~((1U << 5) - 1))
-/* Round up 32 bits and then divide 32 */
+/* Round up 32 and then divide 32 */
 #define DIV_ROUNDUP32(x) DIV32((x) + (1U << 5) - 1)
 /* Check fbn number is zero or not */
-#define fbn_iszero(x) (((x)->len == 1) && (!(x)->num[0]))
+#define fbn_iszero(x) (!(x)->len)
 /* fbn last element */
-#define fbn_lastelmt(x) ((x)->num[(x)->len - 1])
+#define fbn_lastelmt(x) ((x)->num[(x)->len - 1 + !(x)->len])
+/*
+ * Assign a value to fbn's n-th num element.
+ * @obj: fbn object
+ * @n: @n-th element of @obj->num
+ * @value: assigning value, only accept 32-bits unsigned integer
+ */
+#define fbn_assign(obj, n, value) ((obj)->num[(n)] = (value))
+/* Set one fbn as zero */
+#define fbn_setzero(obj) ((obj)->len = 0)
 
 /*
  * Allocate fbn.
- * @len: the length of fbn's num
- * Return fbn with length @len and num is all zeros.
+ * @cap: the length of fbn's num alloc
+ * Return fbn with length round-up4(@cap) and num is all zeros.
  */
-fbn *fbn_alloc(int len)
+fbn *fbn_alloc(int cap)
 {
+    if (unlikely(cap <= 0))
+        goto inval_or_fail_fbnalloc;
     fbn *new = kmalloc(sizeof(fbn), GFP_KERNEL);
     if (unlikely(!new))
-        goto fail_fbn_alloc;
-    new->num = kcalloc(len, sizeof(u32), GFP_KERNEL);
+        goto inval_or_fail_fbnalloc;
+
+    /* round up 4 for lazy allocation */
+    cap = ROUNDUP4(cap);
+    new->num = kcalloc(cap, sizeof(u32), GFP_KERNEL);
     if (unlikely(!new->num))
         goto fail_num_alloc;
-    new->len = len;
+    new->cap = cap;
+    new->len = 0;
     return new;
-
 fail_num_alloc:
     kfree(new);
-fail_fbn_alloc:
+inval_or_fail_fbnalloc:
     return NULL;
 }
 
@@ -57,38 +73,54 @@ int fbn_free(fbn *obj)
 }
 
 /*
- * Resize fbn.
+ * Resize fbn, realloc if needed (lazy alloc).
  * @obj: fbn object
  * @len: new length to @obj's num
  * Return 0 on success and -1 on failure.
  */
 static int fbn_resize(fbn *obj, int len)
 {
-    if (obj->len == len)
+    obj->len = len;
+    if (likely(len <= obj->cap))
         return 0;
-    obj->num = krealloc_array(obj->num, len, sizeof(u32), GFP_KERNEL);
+    int new_cap = ROUNDUP4(len);
+    obj->num = krealloc_array(obj->num, new_cap, sizeof(u32), GFP_KERNEL);
     if (unlikely(!obj->num))
         return -1; /* fail to realloc */
-    if (len > obj->len)
-        memset(obj->num + obj->len, 0, sizeof(u32) * (len - obj->len));
-    obj->len = len;
+    if (new_cap > obj->cap)
+        memset(obj->num + obj->cap, 0, sizeof(u32) * (new_cap - obj->cap));
+    obj->cap = new_cap;
     return 0;
 }
 
 /*
- * Truncate the leading zero element of fbn->num.
+ * Assign a 32-bits value to fbn.
+ * @obj: fbn object
+ * @value: a 32-bits value
+ */
+void fbn_set_u32(fbn *obj, u32 value)
+{
+    if (value > 0) {
+        fbn_resize(obj, 1);
+        fbn_assign(obj, 0, value);
+    } else {
+        fbn_setzero(obj);
+    }
+}
+
+/*
+ * Truncate the leading zero elements of fbn->num, adjust the length of valid
+ * value elements.
  * @obj: fbn object
  */
 static void fbn_trunclz(fbn *obj)
 {
-    if (likely(fbn_lastelmt(obj)))
+    if (likely(fbn_iszero(obj) || fbn_lastelmt(obj)))
         return;
-
     int i = obj->len - 1;
     for (; i >= 0 && !obj->num[i]; --i)
         ;
-    fbn_resize(obj, i + 1 + (i == -1)); /* avoid becoming length 0, happens
-                                           when num is zero */
+    fbn_resize(obj, i + 1);
 }
 
 /*
@@ -99,10 +131,14 @@ static void fbn_trunclz(fbn *obj)
  */
 int fbn_copy(fbn *des, const fbn *src)
 {
+    if (des == src)
+        return 0;
     int res = fbn_resize(des, src->len);
     if (unlikely(res < 0))
         return -1;
     memcpy(des->num, src->num, sizeof(u32) * src->len);
+    des->len = src->len;
+    des->cap = src->cap;
     return 0;
 }
 
@@ -115,15 +151,18 @@ static void fbn_swap_content(fbn *a, fbn *b)
     int len = a->len;
     a->len = b->len;
     b->len = len;
+    int cap = a->cap;
+    a->cap = b->cap;
+    b->cap = cap;
 }
 
 #ifdef _FBN_DEBUG
 /* Print fbn in hex (Debug: use dmesg) */
 void fbndebug_printhex(const fbn *obj)
 {
-    for (int i = obj->len - 1; i >= 0; --i)
-        pr_info("fibdrv_debug: %d %#010x\n", i, obj->num[i]);
-    pr_info("fibdrv_debug: - ----------\n");
+    for (int i = obj->cap - 1; i >= 0; --i)
+        pr_info("fibdrv_debug: %d %#010x", i, obj->num[i]);
+    pr_info("fibdrv_debug: - ---------- len %d", obj->len);
 }
 #endif /* _FBN_DEBUG */
 
@@ -134,6 +173,10 @@ char *fbn_print(const fbn *obj)
     char *str = kmalloc(slen, GFP_KERNEL), *p = str;
     memset(str, '0', slen - 1);
     str[slen - 1] = '\0';
+    if (unlikely(fbn_iszero(obj))) {
+        str[0] = '0';
+        return str;
+    }
 
     for (int i = obj->len - 1; i >= 0; --i) {
         for (u32 mask = 1U << 31; mask; mask >>= 1) {
@@ -160,16 +203,15 @@ char *fbn_print(const fbn *obj)
 /*
  * Divide obj by 10^9.
  * @obj: fbn object which is dividend in the beginning and quotient in the end
- * @nonzero_len: obj->len - #(leading zero elements)
  * Return the remainder.
  */
-static u32 fbn_divten9(fbn *obj, int nonzero_len)
+static u32 fbn_divten9(fbn *obj)
 {
     u32 high_r = 0, divisor = 1000000000U;
     /* start from the leading non-zero element */
-    u32 *nump = obj->num + nonzero_len - 1;
+    u32 *nump = obj->num + obj->len - 1;
 
-    for (int i = nonzero_len - 1; i >= 0; --i) {
+    for (int i = obj->len - 1; i >= 0; --i) {
         u32 cur = *nump, q, r;
         divl(high_r, cur, divisor, q, r);
         *nump = q; /* store the quotient */
@@ -254,16 +296,15 @@ char *fbn_printv1(const fbn *obj)
     char *str_end = str + str_len - 1, *head = str_end - 1;
 
     /* short division, print decimal string */
-    int nonzero_len = obj2->len;
     do {
         /* divided by 10^9, obj2 will become the quotient */
-        u32 r_ten9 = fbn_divten9(obj2, nonzero_len);
+        u32 r_ten9 = fbn_divten9(obj2);
         /* print r_ten9 in str (9 digits) */
         head = put_dec(head, r_ten9);
 
         /* decrease when a new leading zero element appears */
-        nonzero_len -= !obj2->num[nonzero_len - 1];
-    } while (nonzero_len);
+        obj2->len -= !fbn_lastelmt(obj2);
+    } while (obj2->len);
 
     /* strip off the leading 0's */
     while (head < str_end && *head == '0')
@@ -292,8 +333,6 @@ void fbn_lshift31(fbn *b, fbn *a, int k)
         return;
     }
     /* take modulus 32 and resize b */
-    /* Be careful, obj->num[obj->len - 1] cannot be zero. If met, it means
-     * there's zero elements in the high position of num didn't truncated */
     int new_len = a->len - 1 + DIV_ROUNDUP32(fls(fbn_lastelmt(a)) + MOD32(k));
     fbn_resize(b, new_len);
 
@@ -320,8 +359,6 @@ void fbn_lshift(fbn *obj, int k)
         return;
     int shift_bit = MOD32(k);
     int shift_elmt = DIV32(k);
-    /* Be careful, obj->num[obj->len - 1] cannot be zero. If met, it means
-     * there's zero elements in the high position of num didn't truncated */
     int new_elmt = DIV32(k + fls(fbn_lastelmt(obj)) - 1);
     fbn_resize(obj, obj->len + new_elmt);
 
@@ -356,15 +393,26 @@ void fbn_lshift(fbn *obj, int k)
 /* c = a + b, addition assignment (a += b) is also acceptable */
 void fbn_add(fbn *c, fbn *a, fbn *b)
 {
+    /* trivial case: a or b is zero */
+    int a_iszero = fbn_iszero(a);
+    if (unlikely(a_iszero || fbn_iszero(b))) {
+        if (a_iszero)
+            fbn_copy(c, b);
+        else
+            fbn_copy(c, a);
+        return;
+    }
+
     /* a->num is always the longest one */
     if (a->len < b->len)
         fbn_swap(a, b);
+    int b_len = b->len;
     fbn_resize(c, a->len);
 
     /* addition operation (same length part) */
     int i;
     u64 bcabinet = 0;
-    for (i = 0; i < b->len; ++i) {
+    for (i = 0; i < b_len; ++i) {
         bcabinet += (u64) a->num[i] + b->num[i];
         c->num[i] = bcabinet;
         bcabinet >>= 32;
@@ -385,6 +433,15 @@ void fbn_add(fbn *c, fbn *a, fbn *b)
 /* c = a - b, where a >= b. a -= b is also acceptable */
 void fbn_sub(fbn *c, fbn *a, fbn *b)
 {
+    /* trivial case: a or b is zero */
+    int a_iszero = fbn_iszero(a);
+    if (unlikely(a_iszero || fbn_iszero(b))) {
+        if (a_iszero)
+            fbn_set_u32(c, 0);
+        else
+            fbn_copy(c, a);
+        return;
+    }
     fbn_resize(c, a->len);
 
     int i;
@@ -407,17 +464,16 @@ void fbn_sub(fbn *c, fbn *a, fbn *b)
 /* c = a * b (long multiplication). a *= b is also acceptable */
 void fbn_mul(fbn *c, fbn *a, fbn *b)
 {
+    /* trivial case */
     if (unlikely(fbn_iszero(a) || fbn_iszero(b))) {
-        fbn_resize(c, 1);
-        c->num[0] = 0;
+        fbn_set_u32(c, 0); /* c = 0 */
         return;
     }
 
-    /* Be careful, num[obj->len - 1] cannot be zero. If met, it means
-     * there's zero elements in the high position of num didn't truncated */
     int new_len = a->len + b->len - 2 +
                   DIV_ROUNDUP32(fls(fbn_lastelmt(a)) + fls(fbn_lastelmt(b)));
     fbn *pseudo_c = fbn_alloc(new_len); /* need an all zero array */
+    fbn_resize(pseudo_c, new_len);
 
     /* long multiplication */
     for (int offset = 0; offset < b->len; ++offset) {
@@ -450,18 +506,21 @@ void fbn_mul(fbn *c, fbn *a, fbn *b)
 void fbn_fib_defi(fbn *des, int n)
 {
     /* trivial case */
-    if (unlikely(n < 2)) {
-        fbn_resize(des, 1);
-        des->num[0] = n;
+    if (unlikely(n <= 2)) {
+        if (n > 0)
+            fbn_set_u32(des, 1); /* des = 1 */
+        else
+            fbn_set_u32(des, 0); /* des = 0 */
         return;
     }
 
     /* Fibonacci definition */
     fbn *arr[2];
-    arr[0] = fbn_alloc(1); /* initial value = 0 */
+    arr[0] = fbn_alloc(1);
     arr[1] = fbn_alloc(1);
-    arr[1]->num[0] = 1;
-    for (int i = 2; i <= n; ++i)
+    fbn_set_u32(arr[0], 1); /* arr[0] = 1 (F_1) */
+    fbn_set_u32(arr[1], 1); /* arr[1] = 1 (F_2) */
+    for (int i = 3; i <= n; ++i)
         fbn_add(arr[i & 1], arr[i & 1], arr[(i - 1) & 1]);
 
     fbn_swap_content(des, arr[n & 1]);
@@ -476,10 +535,12 @@ void fbn_fib_defi(fbn *des, int n)
  */
 void fbn_fib_fastdoubling(fbn *des, int n)
 {
-    fbn_resize(des, 1);
     /* trivial case */
-    if (unlikely(n < 2)) {
-        des->num[0] = n;
+    if (unlikely(n <= 2)) {
+        if (n > 0)
+            fbn_set_u32(des, 1); /* des = 1 */
+        else
+            fbn_set_u32(des, 0); /* des = 0 */
         return;
     }
 
@@ -488,8 +549,8 @@ void fbn_fib_fastdoubling(fbn *des, int n)
     fbn *a = des; /* a will be the result */
     fbn *b = fbn_alloc(1);
     fbn *tmp = fbn_alloc(1);
-    a->num[0] = 0; /* a = 0 */
-    b->num[0] = 1; /* b = 1 */
+    fbn_set_u32(a, 0); /* a = 0 */
+    fbn_set_u32(b, 1); /* b = 1 */
     while (mask) {
         /* times 2 */
         fbn_lshift31(tmp, b, 1);  /* tmp = ((b << 1) */
@@ -520,10 +581,12 @@ void fbn_fib_fastdoubling(fbn *des, int n)
  */
 void fbn_fib_fastdoublingv1(fbn *des, int n)
 {
-    fbn_resize(des, 1);
     /* trivial case */
-    if (unlikely(n < 2)) {
-        des->num[0] = n;
+    if (unlikely(n <= 2)) {
+        if (n > 0)
+            fbn_set_u32(des, 1); /* des = 1 */
+        else
+            fbn_set_u32(des, 0); /* des = 0 */
         return;
     }
 
@@ -532,8 +595,8 @@ void fbn_fib_fastdoublingv1(fbn *des, int n)
     fbn *a = fbn_alloc(1);
     fbn *b = des; /* b will be the result */
     fbn *tmp = fbn_alloc(1);
-    a->num[0] = 0; /* a = 0 */
-    b->num[0] = 1; /* b = 1 */
+    fbn_set_u32(a, 0); /* a = 0 */
+    fbn_set_u32(b, 1); /* b = 1 */
     while (mask) {
         /* times 2 */
         fbn_lshift31(tmp, a, 1);  /* tmp = ((a << 1) */
