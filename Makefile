@@ -20,6 +20,7 @@ USR := client\
 	   expt04_exactsol\
 	   expt05bn_userkernel\
 	   expt06bn_ktime\
+	   expt07bn_perf\
 	   fbn_debug
 
 all: $(GIT_HOOKS) $(USR)
@@ -117,12 +118,30 @@ expt05: $(USR)
 	./scripts/expt.sh 3
 	$(MAKE) unload
 
+# Test big number Fibonacci computation ktime
 expt06: $(USR)
 	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_TEST_KTIME
 	$(MAKE) unload
 	$(MAKE) load
 	./scripts/expt.sh 4
 	$(MAKE) unload
+
+# Use perf-events on big number Fibonacci computation
+expt07: $(USR)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_PERF_EVT
+	$(MAKE) unload
+	$(MAKE) load
+	sudo sh -c "taskset -c 7 perf record -g ./expt07bn_perf"
+	$(MAKE) unload
+
+# Generate module.dep for loading symbols in perf-events report
+loadsymbol:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules KCFLAGS=-D_PERF_EVT
+	sudo mkdir -p /lib/modules/$(shell uname -r)/extra
+	sudo cp -f $(TARGET_MODULE).ko /lib/modules/$(shell uname -r)/extra
+	sudo depmod -a
+
+.PHONY: loadsymbol clean load unload all
 
 cscope_tags:
 	@rm -f cscope.* tags

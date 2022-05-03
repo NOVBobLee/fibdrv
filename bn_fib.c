@@ -19,7 +19,7 @@
 #define DIV_ROUNDUP32(x) DIV32((x) + (1U << 5) - 1)
 /* Check fbn number is zero or not */
 #define fbn_iszero(x) (!(x)->len)
-/* fbn last element */
+/* fbn last element, need to be used without zero fbn */
 #define fbn_lastelmt(x) ((x)->num[(x)->len - 1 + !(x)->len])
 /*
  * Assign a value to fbn's n-th num element.

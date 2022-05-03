@@ -225,16 +225,6 @@ static int fib_release(struct inode *inode, struct file *file)
     return 0;
 }
 
-#if 0
-/* For escaping the warning in macro BNFIB_KTIME.
- * warning: ignoring return value of ‘copy_to_user’, declared with attribute
- * warn_unused_result [-Wunused-result] */
-__attribute__((always_inline)) static inline void escape(void *p)
-{
-    __asm__ volatile ("" : : "g"(p) : "memory");
-}
-#endif
-
 static char *(*const bn_print[])(const fbn *) = {
     fbn_print,   /* 0 */
     fbn_printv1, /* 1 */
@@ -242,20 +232,19 @@ static char *(*const bn_print[])(const fbn *) = {
 #define BN_PRINT 1
 
 static void (*const bn_fibonacci_seq[])(fbn *, int) = {
-    fbn_fib_defi,
-    fbn_fib_fastdoubling,
-    fbn_fib_fastdoublingv1,
+    fbn_fib_defi,           /* 0 */
+    fbn_fib_fastdoubling,   /* 1 */
+    fbn_fib_fastdoublingv1, /* 2 */
 };
 
-#define BNFIB_KTIME(bnfib_method, k, buf)       \
-    ({                                          \
-        fbn *fib = fbn_alloc(1);                \
-        ktime_t kt = ktime_get();               \
-        bn_fibonacci_seq[bnfib_method](fib, k); \
-        kt = ktime_sub(ktime_get(), kt);        \
-        fbn_free(fib);                          \
-        ktime_to_ns(kt);                        \
-    })
+#if 0
+/* Prevent optimizating the computing */
+__attribute__((always_inline))
+static inline void escape(void *p)
+{
+    __asm__ volatile ("" : : "g"(p) : "memory");
+}
+#endif
 
 /* calculate the fibonacci number at given offset */
 static ssize_t fib_read(struct file *file,
@@ -263,19 +252,26 @@ static ssize_t fib_read(struct file *file,
                         size_t method,
                         loff_t *offset)
 {
-#ifndef _FBN_DEBUG
 #ifdef _TEST_KTIME
-    return (ssize_t) BNFIB_KTIME(method, *offset, buf);
-#else
     fbn *fib = fbn_alloc(1);
+
+    ktime_t kt = ktime_get();
     bn_fibonacci_seq[method](fib, *offset);
-    char *str = bn_print[BN_PRINT](fib);
-    ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
-    kfree(str);
+    kt = ktime_sub(ktime_get(), kt);
+
     fbn_free(fib);
-    return left;
-#endif /* _TEST_KTIME */
-#else  /* defined(_FBN_DEBUG) */
+    return (ssize_t) ktime_to_ns(kt);
+#elif defined(_PERF_EVT)
+#define REPEAT (200 * 1000)
+
+    for (int i = 0; i < REPEAT; ++i) {
+        fbn *fib = fbn_alloc(1);
+        bn_fibonacci_seq[method](fib, *offset);
+        fbn_free(fib);
+    }
+
+    return 0;
+#elif defined(_FBN_DEBUG)
     pr_info("fibdrv_debug: <test bn_fib>");
     fbn *a = fbn_alloc(1);
     char *str = NULL;
@@ -291,7 +287,15 @@ static ssize_t fib_read(struct file *file,
 
     fbn_free(a);
     return 0;
-#endif /* _FBN_DEBUG */
+#else /* normal read */
+    fbn *fib = fbn_alloc(1);
+    bn_fibonacci_seq[method](fib, *offset);
+    char *str = bn_print[BN_PRINT](fib);
+    ssize_t left = copy_to_user(buf, str, strlen(str) + 1);
+    kfree(str);
+    fbn_free(fib);
+    return left;
+#endif
 }
 
 static long long (*const fibonacci_seq[])(long long) = {

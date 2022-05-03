@@ -29,6 +29,7 @@ dkms.conf
 # test-oriented
 client
 out
+perf.data
 
 # editor config
 .vimrc
@@ -47,3 +48,4 @@ expt04_exactsol
 fbn_debug
 expt05bn_userkernel
 expt06bn_ktime
+expt07bn_perf
